@@ -1,0 +1,369 @@
+# 2018-09-11: first tidy tuesday
+
+## keep it simple:
+
+### Objectives: 
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+https://rviews.rstudio.com/2017/06/08/what-is-the-tidyverse/ 
+
+( migrating from ETL + analysis)
+
+
+### workflow:
+
+1st iteration:
+
+* get the git project: https://github.com/rfordatascience/tidytuesday
+* add a new folder where your works will be placed, ex: 'jas1_weeks'
+* inside it, add week folders inside with naming == data folder ; ex: '2018-09-11'
+* add your rmd file for documenting your workflow, notes & stuff ; ex: 'tidytuesday/jas1_weeks/2018-09-11/readme.rmd'
+* get to the specific challenge tasks
+
+#### Understand the business
+
+* to understand what to do , you need to check the challenge objectives;
+* read the article wich is being analized; more information on the data folder of the week: tidytuesday/data/2018-09-11
+
+https://www.washingtonpost.com/news/wonk/wp/2014/07/28/where-cats-are-more-popular-than-dogs-in-the-u-s-and-all-over-the-world/
+
+> some css tricks for reading: 
+> * F12 
+> * display: none; 
+> * overflow: auto;
+
+* make notes / scripts , document what you do.
+
+#### Define your goal to do:
+
+as 1st timer on tidy tuesday
+
+* show the ordered tables
+* make the map, hex-tiled
+* add the cat/dog histogram from: https://data.world/datanerd/cat-vs-dog-popularity-in-u-s
+* update the objective as i acommplish task; ( new ideas, or at least document " future work" )
+
+
+#### Import: git clone + git merge from the original
+
+* import the data from the current dataset (ctrl + alt + i: shortcut for insert R chunks in rmd in rstudio)
+* peek raw data to have an intuition,  ( always remember to check file size, because of larger datasets )
+* refactor to make the proper read. (strings as factors= false)
+
+```{r}
+library(dplyr)
+
+file_location <- '../../data/2018-09-11/cats_vs_dogs.csv'
+raw_data <- read.csv(file_location,stringsAsFactors = FALSE)
+glimpse( raw_data) 
+
+```
+
+#### Tidy: 
+
+
+We can see, we got 49 observatitions, and 13 variables; and how are they structured.
+
+```{r}
+data <- raw_data %>% rename(id=X)
+glimpse(data)
+```
+
+as 1st stransformation, X , its given the "id" name; as i think its more descriptive
+
+we can see 2 variables do not have any sense to calculate stuff as they are categorical variables: state & id.
+
+id for identification of observation
+and state, as a "category" / "grouping"
+( http://www.abs.gov.au/websitedbs/a3121120.nsf/home/statistical+language+-+what+are+variables )
+
+
+#### Understand: 
+
+##### Transform
+
+lets take a look to some detail to all the variables; as im not quite happy with default "summary" just google tidiyverse summary; after digging little,  and found skimr from ropensci: https://ropensci.org/blog/2017/07/11/skimr/
+
+
+```{r}
+library(skimr)#install.packages('skimr')
+skim(data)
+```
+
+thats an oustanding summary; it tells you a lot , first of all , no missing values on any variable.
+and a mini histogram from em.
+
+to take a look at distributions, always found helpfull the box plot: 
+for that we need to transform the dataset from wide to long.
+
+```{r}
+
+library(tidyr)
+
+long_data <- gather(data,key=variable,value=value,-state,-id)
+glimpse(long_data)
+```
+
+
+##### Visuailze
+```{r}
+
+
+library(ggplot2)
+ggplot(long_data,aes(y=value,x=variable,fill=variable)) + 
+    geom_boxplot() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+As seen some variables are not on same range of values: the avg & the percent.
+
+##### Transform
+```{r}
+library(stringi)
+library(stringr)
+percent_data <- long_data%>% filter(str_detect(variable,"percent_") )
+avg_data <- long_data%>% filter(str_detect(variable,"avg_") )
+other_data <- long_data %>% filter( !str_detect(variable,"percent_")) %>% filter( !str_detect(variable,"avg_") )
+
+# just to check the filter its ok
+percent_data %>% group_by(variable) %>% tally() %>% select(variable)
+avg_data %>% group_by(variable) %>% tally()  %>% select(variable)
+other_data %>% group_by(variable) %>% tally()  %>% select(variable)
+
+```
+
+##### Visuailze
+
+```{r}
+
+
+ggplot(percent_data,aes(y=value,x=variable,fill=variable)) + 
+    geom_boxplot() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(avg_data,aes(y=value,x=variable,fill=variable)) + 
+    geom_boxplot() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(other_data,aes(y=value,x=variable,fill=variable)) + 
+    geom_boxplot() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+watching the variables can be said a lot of stuff; and can build some rations on them. 
+
+as time assigned here, i'll skip this analysis for later / future.
+
+
+
+
+# Outputs: 
+
+For closing this first stage of tidytuesday , ill focus on the derivables
+
+## show the ordered tables
+
+
+before checking order, we need to see if data is consistent; not only numbers, but for the domain being analized.
+
+in this case quantity of states, and no repeating; so we count the ocurrences, 
+filter with N will be greather than 1
+
+```{r}
+data %>% count(state) %>% filter(n > 1)
+```
+
+luckily no repetitions.
+
+Columns needed: 
+
+Rank 	State 	Cats 	Dogs 	Ratio, dogs to cats Ratio, cats to dogs
+
+
+
+```{r}
+process_data <- data %>% 
+    select(state,cat_population,dog_population) %>% 
+    mutate(ratio_dog_cat = dog_population/cat_population ) %>%
+    mutate(ratio_cat_dog = cat_population/dog_population )
+```
+
+### Top 10 dog-loving states
+
+```{r}
+process_data %>% top_n(10,wt = ratio_dog_cat) %>% arrange(desc(ratio_dog_cat))
+
+```
+
+#Top 10 cat-loving states
+
+```{r}
+process_data %>% top_n(10,wt = ratio_cat_dog) %>% arrange(desc(ratio_cat_dog))
+
+```
+
+
+## add the cat/dog histogram from: 
+
+https://data.world/datanerd/cat-vs-dog-popularity-in-u-s
+
+needed the percent difference: dogs - cats
+
+usefull links:
+
+* http://www.sthda.com/english/wiki/ggplot2-title-main-axis-and-legend-titles
+* http://www.sthda.com/english/wiki/ggplot2-essentials
+* http://www.sthda.com/english/wiki/ggplot2-axis-ticks-a-guide-to-customize-tick-marks-and-labels
+* http://www.sthda.com/english/wiki/ggplot2-legend-easy-steps-to-change-the-position-and-the-appearance-of-a-graph-legend-in-r-software
+
+
+```{r}
+
+
+
+process_data_hist_all <- data %>%
+    mutate(percent_diff = percent_dog_owners-percent_cat_owners) %>%
+    mutate(animal=if_else(percent_diff >0,"Dog","Cat"))
+
+process_data_hist <- process_data_hist_all  %>% 
+    select(state,percent_diff,animal) %>% 
+    arrange(desc(percent_diff))
+
+# glimpse(process_data_hist)
+
+# process_data_hist %>% arrange(desc(percent_diff)) 
+
+# ggplot(process_data_hist,aes(x=state))+geom_bar(stat = id)
+
+ggplot(data = process_data_hist, 
+       mapping = aes(x = reorder(state, percent_diff), fill = animal, 
+                     y = ifelse(animal == "Cat", percent_diff, percent_diff))) +
+  geom_bar(stat = "identity", # for the value
+           width=0.4 ) +#, # for thiner bars
+          # position = position_dodge(width=0.5)) +
+  scale_y_continuous(labels = abs, limits = max(process_data_hist$percent_diff) * c(-1,1)) +
+  labs(y = "Percent Difference") +
+  coord_flip() +
+    ggtitle("Dog Vs Cat orientation by State") +
+    ylab("Percent Difference") + 
+    xlab("State") +
+    theme(axis.text.y = element_text( color="#993333", size=9,margin = margin(2, 2, 2, 2)))
+    # couldnt make the label axis space ok.
+
+```
+
+
+
+## make the map, hex-tiled
+
+utils:
+
+https://www.r-graph-gallery.com/328-hexbin-map-of-the-usa/
+
+https://stackoverflow.com/questions/37912418/how-does-geom-map-map-id-function-work
+
+http://ryanhafen.com/blog/geofacet
+
+```{r}
+
+
+library(geojsonio) #install.packages("geojsonio")
+spdf <- geojson_read("us_states_hexgrid.geojson",  what = "sp")
+ 
+# I need to 'fortify' the data to be able to show it with ggplot2 (we need a data frame format)
+library(broom)
+spdf@data = spdf@data %>% mutate(google_name = gsub(" \\(United States\\)", "", google_name))
+spdf_fortified <- tidy(spdf, region = "google_name")
+
+
+library(rgeos) #install.packages("rgeos")
+centers <- cbind.data.frame(data.frame(gCentroid(spdf, byid=TRUE), id=spdf@data$iso3166_2))
+
+library(mapproj) #install.packages("mapproj")
+
+
+# Now I can plot this shape easily as described before:
+# ggplot() +
+#   geom_polygon(data = spdf_fortified, aes( x = long, y = lat, group = group), fill="skyblue", color="white") +
+#   geom_text(data=centers, aes(x=x, y=y, label=id)) +
+#   theme_void() +
+#   coord_map()
+
+
+# percent_data_long <- process_data_hist %>% spread(key = variable,value=value)
+# glimpse(percent_data_long)
+ 
+# Merge geospatial and numerical information
+spdf_fortified_cat_dogs  <-  spdf_fortified %>% 
+    left_join(. , process_data_hist, by=c("id"="state"))
+
+# glimpse(spdf_fortified_cat_dogs)
+
+spdf_fortified_cat_dogs_percent <- spdf_fortified_cat_dogs 
+glimpse(spdf_fortified_cat_dogs)
+
+
+# Make a first chloropleth map
+ggplot() +
+  geom_polygon(data = spdf_fortified_cat_dogs_percent,
+               aes(fill =  percent_diff, x = long, y = lat, group = group)) +
+  geom_text(data=centers,
+            aes(x=x, y=y, label=id), color="white", size=3, alpha=0.6) +
+  theme_void() +
+  coord_map() + 
+  ggtitle( "Dogs Vs Cats, orientation By state" ) +
+theme(
+    legend.position = "top",
+    text = element_text(color = "#ffffff"))
+
+# # Prepare binning
+# spdf_fortified$bin = cut( spdf_fortified$percent_diff , 
+#                           breaks=c(seq(5,10), Inf), labels=c("5-6", "6-7", "7-8", "8-9", "9-10", "10+" ), include.lowest = TRUE )
+#  
+# # Prepare a color scale coming from the viridis color palette
+# library(viridis)
+# my_palette=rev(magma(8))[c(-1,-8)]
+#  
+# # plot
+# ggplot() +
+#   geom_polygon(data = spdf_fortified, 
+#                aes(fill = bin, x = long, y = lat, group = group) , size=0, alpha=0.9) +
+#   geom_text(data=centers, 
+#             aes(x=x, y=y, label=id), color="white", size=3, alpha=0.6) +
+#   theme_void() +
+#   scale_fill_manual( 
+#     values=my_palette, 
+#     name="Wedding per 1000 people in 2015", 
+#     guide = guide_legend( keyheight = unit(3, units = "mm"), keywidth=unit(12, units = "mm"), label.position = "bottom", title.position = 'top', nrow=1) 
+#   ) +
+#   ggtitle( "A map of marriage rates, state by state" ) +
+#   theme(
+#     legend.position = c(0.5, 0.9),
+#     text = element_text(color = "#22211d"),
+#     plot.background = element_rect(fill = "#f5f5f2", color = NA), 
+#     panel.background = element_rect(fill = "#f5f5f2", color = NA), 
+#     legend.background = element_rect(fill = "#f5f5f2", color = NA),
+#     plot.title = element_text(size= 22, hjust=0.5, color = "#4e4d47", margin = margin(b = -0.1, t = 0.4, l = 2, unit = "cm")),
+#   )
+#  
+
+```
+
+
+
+Enough for today ! 
+
+# future stuff: 
+
+- apply to other maps
+- playe more with ggplot 
+- analyze deeper
+- make a better report, showing / not showing some stuff & comments.
