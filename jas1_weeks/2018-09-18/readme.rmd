@@ -103,11 +103,14 @@ for now just will ad an "ID" columns instead of X
 
 ```{r}
 us_airports_data <- us_airports_raw_data %>% rename(id = X)
-DT::datatable(us_airports_data,rownames = FALSE,options = list(dom = 't',initComplete = JS(
-        "function(settings, json) {",
-        "$(this.api().table().header()).css({'font-size': '50%'});",
-        "}")))  %>% 
-    formatStyle(names(us_airports_data), fontSize = "8pt")
+# data table is awsome but it imports the data on the final html
+# DT::datatable(us_airports_data,rownames = FALSE,options = list(dom = 't',initComplete = JS(
+#         "function(settings, json) {",
+#         "$(this.api().table().header()).css({'font-size': '50%'});",
+#         "}")))  %>% 
+#     formatStyle(names(us_airports_data), fontSize = "8pt")
+head(us_airports_data)
+
 ```
 
 
@@ -174,11 +177,13 @@ hypoxia_data <- hypoxia_raw_data %>%
     select(-id) %>% # because id its wrong numbered.
     rownames_to_column("id")
 
-DT::datatable(hypoxia_data,rownames = FALSE,options = list(dom = 't',initComplete = JS(
-        "function(settings, json) {",
-        "$(this.api().table().header()).css({'font-size': '50%'});",
-        "}"))) %>% 
-    formatStyle(names(hypoxia_data), fontSize = "8pt")
+# data table is awsome but it imports the data on the final html
+#DT::datatable(hypoxia_data,rownames = FALSE,options = list(dom = 't',initComplete = JS(
+#        "function(settings, json) {",
+#        "$(this.api().table().header()).css({'font-size': '50%'});",
+#        "}"))) %>% 
+#    formatStyle(names(hypoxia_data), fontSize = "8pt")
+hypoxia_data
 
 ```
 
@@ -198,7 +203,7 @@ other things that figure on the table and not so clear whate they are are colore
 
 ## conclussion 
 
-* it has been a nice practice to clean small data.
+* it has been a nice practice to clean small data. ( didnt touch the airports)
 * dealt with some workflow issues ( git )
 * it still have juice to pull out :D
 
