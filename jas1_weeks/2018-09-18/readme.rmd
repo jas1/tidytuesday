@@ -1,8 +1,10 @@
 ---
 title: "readme.rmd"
 author: "_jas"
-date: "20 de septiembre de 2018"
-output: html_document
+date: "`r format(Sys.Date())`"
+output: 
+    html_document
+always_allow_html: yes
 ---
 
 
@@ -17,6 +19,11 @@ output: html_document
 * practice, 
 * get better on your workflow,
 * get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+### Define your goal to do:
+
+added at last, my goal here was to keep the week streak. just that.
+after starting i came out with some other stuff, and cool ideas, that have to wait.
 
 ## 1st leson: Import the new data from github master 
 
@@ -45,6 +52,20 @@ update my fork with master repo: https://help.github.com/articles/merging-an-ups
 
 * git push origin master
 
+## 2nd lesson: github html publication
+
+publishing last week seem odd as images weren't keep
+now i got the same issue, also with html cool stuff as data tables. (DT)
+
+* http://stat545.com/block007_first-use-rmarkdown.html#step-6-publish-your-report
+
+* http://stat545.com/bit006_github-browsability-wins.html#html
+
+* https://yihui.name/knitr/options/
+
+
+as got other stuff to do got the links, one step closer :p
+
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 
@@ -52,7 +73,7 @@ library(tibble)
 library(dplyr)
 library(tidyr)
 library(stringr)
-library(stringi)
+library(stringi)#; install.packages("stringi")
 library(DT)
 ```
 
@@ -76,15 +97,21 @@ glimpse(us_airports_raw_data)
 as seen both need some work on the naming.
 hypoxia needs a little more work.
 
-# Tidy Airports
+## Tidy Airports
 
 for now just will ad an "ID" columns instead of X
 
 ```{r}
 us_airports_data <- us_airports_raw_data %>% rename(id = X)
+DT::datatable(us_airports_data,rownames = FALSE,options = list(dom = 't',initComplete = JS(
+        "function(settings, json) {",
+        "$(this.api().table().header()).css({'font-size': '50%'});",
+        "}")))  %>% 
+    formatStyle(names(us_airports_data), fontSize = "8pt")
 ```
 
-# Tidy Hypoxia
+
+## Tidy Hypoxia
 
 as seen in file, it has 2 rows that are for colnames.
 more on this on: https://github.com/rfordatascience/tidytuesday/files/2343596/Hypoxia.Article.proof.pdf
@@ -155,5 +182,43 @@ DT::datatable(hypoxia_data,rownames = FALSE,options = list(dom = 't',initComplet
 
 ```
 
-# Work in progress -- time to sleep
+# Understand
+
+## about airports
+
+as spent much time on hypoxia , i fall short on airports.
+
+## about hypoxia
+
+seems to have several domain things that are on the article, also some extra data that is not here for other outputs.
+
+other things that figure on the table and not so clear whate they are are colored fonts, on red, green and lightblue
+
+# Comunicate
+
+## conclussion 
+
+* it has been a nice practice to clean small data.
+* dealt with some workflow issues ( git )
+* it still have juice to pull out :D
+
+## future
+
+* translate the work to spanish.
+* can make a better univariated analysis
+* add similar analysis to argentina dataset.
+
+### future airports
+
+* can me made a map similar to previous week ( hextile )
+* can try other map types: as expressed on: http://ryanhafen.com/blog/geofacet
+* can make simple stuff as rank histogram  , like the cat/dog.
+
+### future hypoxia
+
+* can be transform to long format and then used in ggplot to have some plots.
+* ex: something showing the heigths and values related there.
+
+
+
 
