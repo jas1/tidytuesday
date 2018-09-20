@@ -203,7 +203,7 @@ process_data %>% top_n(10,wt = ratio_dog_cat) %>% arrange(desc(ratio_dog_cat))
 
 ```
 
-#Top 10 cat-loving states
+### Top 10 cat-loving states
 
 ```{r}
 process_data %>% top_n(10,wt = ratio_cat_dog) %>% arrange(desc(ratio_cat_dog))
@@ -211,7 +211,7 @@ process_data %>% top_n(10,wt = ratio_cat_dog) %>% arrange(desc(ratio_cat_dog))
 ```
 
 
-## add the cat/dog histogram from: 
+## Cat/dog histogram from: 
 
 https://data.world/datanerd/cat-vs-dog-popularity-in-u-s
 
@@ -262,7 +262,7 @@ ggplot(data = process_data_hist,
 
 
 
-## make the map, hex-tiled
+## Map, hex-tiled
 
 utils:
 
@@ -356,7 +356,6 @@ theme(
 #  
 
 ```
-
 
 
 Enough for today ! 
