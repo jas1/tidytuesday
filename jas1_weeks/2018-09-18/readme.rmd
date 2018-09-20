@@ -3,7 +3,12 @@ title: "readme.rmd"
 author: "_jas"
 date: "`r format(Sys.Date())`"
 output: 
+<<<<<<< HEAD
     html_document
+=======
+    html_document:  
+        keep_md: true  
+>>>>>>> 3a50d77b093239bb13ded741a12d62d616c0b088
 always_allow_html: yes
 ---
 
@@ -103,6 +108,7 @@ for now just will ad an "ID" columns instead of X
 
 ```{r}
 us_airports_data <- us_airports_raw_data %>% rename(id = X)
+<<<<<<< HEAD
 # data table is awsome but it imports the data on the final html
 # DT::datatable(us_airports_data,rownames = FALSE,options = list(dom = 't',initComplete = JS(
 #         "function(settings, json) {",
@@ -111,6 +117,13 @@ us_airports_data <- us_airports_raw_data %>% rename(id = X)
 #     formatStyle(names(us_airports_data), fontSize = "8pt")
 head(us_airports_data)
 
+=======
+DT::datatable(us_airports_data,rownames = FALSE,options = list(dom = 't',initComplete = JS(
+        "function(settings, json) {",
+        "$(this.api().table().header()).css({'font-size': '50%'});",
+        "}")))  %>% 
+    formatStyle(names(us_airports_data), fontSize = "8pt")
+>>>>>>> 3a50d77b093239bb13ded741a12d62d616c0b088
 ```
 
 
@@ -203,7 +216,11 @@ other things that figure on the table and not so clear whate they are are colore
 
 ## conclussion 
 
+<<<<<<< HEAD
 * it has been a nice practice to clean small data. ( didnt touch the airports)
+=======
+* it has been a nice practice to clean small data.
+>>>>>>> 3a50d77b093239bb13ded741a12d62d616c0b088
 * dealt with some workflow issues ( git )
 * it still have juice to pull out :D
 
