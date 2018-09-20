@@ -1,0 +1,159 @@
+---
+title: "readme.rmd"
+author: "_jas"
+date: "20 de septiembre de 2018"
+output: html_document
+---
+
+
+# Tidy tuesday challenge 2018-09-18: Hypoxia & us-airports
+
+
+## keep it simple:
+
+### Objectives: 
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+## 1st leson: Import the new data from github master 
+
+update my fork with master repo: https://help.github.com/articles/merging-an-upstream-repository-into-your-fork/
+
+
+* Open Git Bash.
+
+* Change the current working directory to your local project.
+
+* Check out the branch you wish to merge to. Usually, you will merge into master.
+
+* git checkout master
+
+* Pull the desired branch from the upstream repository. This method will retain the commit history without modification.
+
+* git pull https://github.com/ORIGINAL_OWNER/ORIGINAL_REPOSITORY.git BRANCH_NAME
+
+* If there are conflicts, resolve them. For more information, see "Addressing merge conflicts".
+
+* Commit the merge.
+
+* Review the changes and ensure they are satisfactory.
+
+* Push the merge to your GitHub repository.
+
+* git push origin master
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(stringi)
+library(DT)
+```
+
+# Import
+
+```{r}
+
+hypoxia_file_location <- '../../data/2018-09-18/hypoxia.csv'
+us_airports_file_location <- '../../data/2018-09-18/us-airports.csv'
+
+hypoxia_raw_data <- read.csv(hypoxia_file_location,stringsAsFactors = FALSE)
+us_airports_raw_data <- read.csv(us_airports_file_location,stringsAsFactors = FALSE)
+
+glimpse(hypoxia_raw_data) 
+glimpse(us_airports_raw_data) 
+
+```
+
+# Tidy
+
+as seen both need some work on the naming.
+hypoxia needs a little more work.
+
+# Tidy Airports
+
+for now just will ad an "ID" columns instead of X
+
+```{r}
+us_airports_data <- us_airports_raw_data %>% rename(id = X)
+```
+
+# Tidy Hypoxia
+
+as seen in file, it has 2 rows that are for colnames.
+more on this on: https://github.com/rfordatascience/tidytuesday/files/2343596/Hypoxia.Article.proof.pdf
+
+so ill reload the hipoxia data and get the 1st and 2nd rows as headers.
+
+ill preserve the headers just in case are needed.
+
+```{r}
+#
+hypoxia_headers_raw <- read.csv(hypoxia_file_location,stringsAsFactors = FALSE,nrows = 2,header = FALSE)
+hypoxia_headers <- t(hypoxia_headers_raw) %>% as_tibble() %>% 
+    rename(main = V1,measure =V2) %>%
+    mutate(original_main=main,original_measure=measure)
+
+# hypoxia_headers <- hypoxia_headers[-1,]
+hypoxia_headers[1,1] <- "id"
+hypoxia_headers[1,2] <- "id"
+
+hypoxia_headers <- hypoxia_headers %>% 
+    mutate(main = str_to_lower(main)) %>% # lowercase
+    mutate(main = str_replace(main,"with o2=100%","")) %>%
+    mutate(main = str_trim(main)) %>% # remove leading/trailing spaces
+    mutate(measure = str_to_lower(measure)) %>% # lowercase
+    mutate(measure = str_trim(measure)) %>% # remove leading/trailing spaces
+    mutate(measure = if_else(measure == "","100%_o2",measure)) %>%
+    mutate(main = str_replace_all(main," ","_")) %>% 
+    mutate(main = str_replace_all(main,"%","perc")) %>%
+    mutate(main = str_replace_all(main,"_1","")) %>%
+    mutate(measure = str_replace_all(measure," ","_")) %>% 
+    mutate(measure = str_replace_all(measure,"%","")) %>% 
+    mutate(measure = str_replace_all(measure,">90_","")) %>% 
+    mutate(measure = str_replace_all(measure,">35_","")) %>% 
+    mutate(measure = str_replace_all(measure,"=","")) %>% 
+    mutate(measure = str_replace_all(measure,"mmhg_","")) %>% 
+    mutate(measure = str_replace_all(measure,"ft/m","ft_m")) %>% 
+    mutate(header_end=paste0(main,"_",measure)) %>%
+    mutate(header_end=if_else(header_end=="id_id","id",header_end))
+    
+
+#set colnames manually:
+#colnames_hypoxia <- c("id","altitude","air_press","pp_O2","alv_p_O2","perc_sat_O2","alv_p_CO2","alv_p_O2_with_O2_100_perc","perc_sat_ _O2_1","alv_p_CO2_1")
+# skips 2 rows
+
+colnames_hypoxia <- hypoxia_headers %>% pull(header_end)
+hypoxia_raw_data <- read.csv(hypoxia_file_location,
+                             stringsAsFactors = FALSE,
+                             skip = 2,
+                             header = FALSE,
+                             col.names = colnames_hypoxia)
+
+hypoxia_data <- hypoxia_raw_data %>% 
+    mutate(alv_po2_on_air=if_else( is.nan(alv_po2_on_air), as.numeric(NA),alv_po2_on_air )) %>% 
+    mutate(perc_sat_o2_desired=if_else( is.nan(perc_sat_o2_desired),  as.numeric(NA),perc_sat_o2_desired )) %>% 
+    mutate(alv_pco2_best=if_else( is.nan(alv_pco2_best),  as.numeric(NA),alv_pco2_best )) %>%
+    mutate(altitude_ft_m=str_replace_all(altitude_ft_m,"k","")) %>%
+    mutate(altitude_ft_m=if_else( str_detect(altitude_ft_m,"Sea level"),  "0/0", altitude_ft_m)) %>%
+    separate(col = altitude_ft_m,into = c("altitude_ft","altitude_mts"),sep='/') %>%
+    mutate(altitude_ft = as.numeric(altitude_ft)*1000,altitude_mts =as.numeric(altitude_mts)*1000 ) %>%
+    select(-id) %>% # because id its wrong numbered.
+    rownames_to_column("id")
+
+DT::datatable(hypoxia_data,rownames = FALSE,options = list(dom = 't',initComplete = JS(
+        "function(settings, json) {",
+        "$(this.api().table().header()).css({'font-size': '50%'});",
+        "}"))) %>% 
+    formatStyle(names(hypoxia_data), fontSize = "8pt")
+
+```
+
+# Work in progress -- time to sleep
+
