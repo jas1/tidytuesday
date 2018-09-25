@@ -39,7 +39,7 @@ update my fork with master repo: https://help.github.com/articles/merging-an-ups
 
 * Pull the desired branch from the upstream repository. This method will retain the commit history without modification.
 
-* git pull https://github.com/ORIGINAL_OWNER/ORIGINAL_REPOSITORY.git BRANCH_NAME
+* git pull https://github.com/rfordatascience/tidytuesday.git master
 
 * If there are conflicts, resolve them. For more information, see "Addressing merge conflicts".
 

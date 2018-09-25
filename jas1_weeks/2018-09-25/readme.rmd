@@ -1,0 +1,65 @@
+---
+title: "week 2018-09-25"
+author: "_jas"
+date: "`r format(Sys.Date())`"
+output: html_document
+---
+
+# Week 26 - Invasive Species in Africa
+
+## keep it simple:
+
+### Objectives: 
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+# workflow
+
+* Open Git Bash.
+
+* Change the current working directory to your local project.
+
+* Check out the branch you wish to merge to. Usually, you will merge into master.
+
+* git checkout master
+
+* Pull the desired branch from the upstream repository. This method will retain the commit history without modification.
+
+* git pull https://github.com/rfordatascience/tidytuesday.git master
+
+* If there are conflicts, resolve them. For more information, see "Addressing merge conflicts".
+
+* Commit the merge.
+
+* Start the week challenge !
+
+
+
+# Import
+
+# Tidy
+
+# Understand
+
+## iteration 1
+
+### transform
+
+### visualize
+
+### model
+
+## iteration 2
+
+# Communicate
+
+
+# future work: 
+
+## future work: branch pulses ? 
+
+not related to this week challenge, but to answer " how many branches of the main repo are still active ?"
+may be doing a shiny app ?
