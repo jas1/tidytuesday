@@ -36,15 +36,246 @@ output: html_document
 
 * Start the week challenge !
 
-
-
 # Import
+
+To have an idea of how the data is presented gotta check: 
+
+http://www.pnas.org/content/pnas/suppl/2016/06/16/1602205113.DCSupplemental/pnas.1602205113.sapp.pdf
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(here)#;install.packages("here") # 1st time using this , its quite handy :D
+library(janitor)#;install.packages("janitor") janitor::clean_names() # 1st time using janitor, really usefull ! 
+
+```
+
+
+```{r}
+
+table_1_raw <- read.csv(here("data", "2018-09-25","raw","table1.csv"),stringsAsFactors = FALSE)
+table_2_raw <- read.csv(here("data", "2018-09-25","raw","table2.csv"),stringsAsFactors = FALSE)
+table_3_raw <- read.csv(here("data", "2018-09-25","raw","table3.csv"),stringsAsFactors = FALSE)
+table_4_raw <- read.csv(here("data", "2018-09-25","raw","table4.csv"),stringsAsFactors = FALSE)
+table_6_raw <- read.csv(here("data", "2018-09-25","raw","table6.csv"),stringsAsFactors = FALSE)
+
+```
+
 
 # Tidy
 
+```{r}
+table_1 <- table_1_raw %>% janitor::clean_names() %>% as_tibble()
+table_2 <- table_2_raw %>% janitor::clean_names() %>% as_tibble()
+table_3 <- table_3_raw %>% janitor::clean_names() %>% as_tibble()
+table_4 <- table_4_raw %>% janitor::clean_names() %>% as_tibble()
+table_6 <- table_6_raw %>% janitor::clean_names() %>% as_tibble()
+
+```
+
+
+
 # Understand
 
-## iteration 1
+will do an iteration for each file, and later on more if needed / time helps.
+
+## table 1: iteration 1
+
+### transform
+
+as seen on the original PDF , is a ranking with rank / country / ott
+but its broken into 3 columns to use the pdf space.
+
+#### 3 columns
+
+1st step its to get the dataset in the correct form , that is 3 columns
+
+```{r}
+
+table_1_part_1 <-  table_1 %>% select(rank,country,o_tt)
+table_1_part_2 <-  table_1 %>% select(rank_1,country_1,o_tt_1) %>% rename(rank=rank_1,
+                                                                          country=country_1,
+                                                                          o_tt=o_tt_1)
+
+table_1_part_3 <-  table_1 %>% select(rank_2,country_2,o_tt_2) %>% rename(rank=rank_2,
+                                                                          country=country_2,
+                                                                          o_tt=o_tt_2)
+
+table_1_final <- table_1_part_1 %>% union(table_1_part_2) %>% union(table_1_part_3) %>% arrange(rank)
+
+
+```
+
+#### see data
+
+```{r}
+library(skimr)#install.packages('skimr')
+skim(table_1_final)
+```
+
+as seen on summary; 
+
+* country: have 125 unique values, that are complete
+* rank: are 124 values with a missing value
+* o_tt: are 124 values with a missing value
+
+checking the missing value
+
+```{r}
+table_1_final %>% filter(!complete.cases(rank))
+```
+
+as can see is a full blank row, we can delete that safely.
+
+```{r}
+table_1_final <- table_1_final %>% filter(complete.cases(rank))
+skim(table_1_final)
+```
+
+there we go , 124 full .
+
+
+### visualize
+
+a simple visualization
+
+```{r}
+library(ggplot2)
+
+ggplot(table_1_final,aes(y=o_tt)) + 
+    geom_boxplot() + 
+    geom_jitter(aes(y=o_tt,x=0),
+               position=position_jitter(width=0.1,height=0),
+               alpha=0.6,
+               size=3) 
+
+```
+
+a simple nice plot , could have the dots representing each country continent. for future expansion.
+
+
+### model
+
+--
+
+## iteration 1: table 2
+
+have the same issue as table 1, all data is spread into 3 columns
+
+```{r}
+
+table_2 %>% head()
+
+```
+
+
+after looking at the data; 
+we see that 
+- the 1st row its part of the header !
+- the 1st and 2nd column got a problem. 
+- 1st column got both columns thogheter 
+- 2nd column its filled with NA
+
+todo: 
+
+- fix header
+- remove NA columns
+- split rank country  in 2 columns
+- get the data into 3 columns.
+- remove the money sign + parse as number
+
+### transform
+
+```{r}
+library(readr)#;install.packages("readr") # 1st time using parse number :D
+library(stringr)
+
+
+table_2_headers <- c('rank','country','TICt_M_USD')
+table_2_new <- table_2[ -1,] # remove the 1st row
+table_2_part_1 <- table_2_new %>% select(x,ti_ct_millions) 
+table_2_part_2 <- table_2_new %>% select(x_2,ti_ct_millions_1) %>% rename(x=x_2,
+                                                            ti_ct_millions=ti_ct_millions_1)
+table_2_part_3 <- table_2_new %>% select(x_4,ti_ct_millions_2) %>% rename(x=x_4,
+                                                            ti_ct_millions=ti_ct_millions_2)
+
+table_2_final <- table_2_part_1 %>% union(table_2_part_2) %>% union(table_2_part_3)
+
+table_2_final <- table_2_final %>% 
+    mutate(rank = readr:::parse_number(x),
+           country=stringr:::str_extract(x, "[:alpha:]+"),
+           TICt_USD =  readr:::parse_number(ti_ct_millions) * 1000000 ) %>% 
+    select(rank,country,TICt_USD)
+
+
+# missing 1 all values in row
+table_2_final %>% filter(!complete.cases(rank))
+
+# just keep the complete cases
+table_2_final <- table_2_final %>% filter(complete.cases(rank))
+skim(table_2_final)
+
+```
+
+### visualize
+
+```{r}
+ggplot(table_2_final,aes(y=TICt_USD)) + 
+    geom_boxplot() + 
+    geom_jitter(aes(y=TICt_USD,x=0),
+               position=position_jitter(width=0.1,height=0),
+               alpha=0.6,
+               size=3) 
+```
+
+
+well the boxplot doesnt help 
+
+having a map will be cooler: 
+
+```{r}
+
+# https://stackoverflow.com/questions/47502716/creating-a-choropleth-in-r-measuring-violent-crimes-by-county-in-north-carolina
+# library(ggthemes)#;install.packages("ggthemes")
+# 
+# world_map <- tbl_df(map_data("world"))
+# 
+# df_world_countries <- data_frame(country = unique(world_map$region)) %>% as_tibble()
+# 
+# df_world_countries <- df_world_countries %>% left_join(table_2_final)
+# 
+# df_world_countries <- df_world_countries %>% mutate(TICt_USD=if_else(is.na(TICt_USD),0,TICt_USD))
+# 
+# data_world_join <- world_map %>% left_join(df_world_countries,by=c("region"="country"))
+# 
+# ggplot() +
+#   geom_polygon(data=data_world_join, color="black",
+#                aes(x=long, y=lat, group=region, fill=TICt_USD)) +
+#   viridis::scale_fill_viridis(name="TICt_USD ", direction=-1) +
+#   coord_map("polyconic") +
+#   ggthemes::theme_map() +
+#   theme(legend.position="bottom")
+# 
+# 
+# ggplot() +
+#   geom_polygon(data=world_map, color="black",
+#                aes(x=long, y=lat, group=region, fill=1)) +
+#   viridis::scale_fill_viridis(name="1 ", direction=-1) +
+#   coord_map("polyconic") +
+#   ggthemes::theme_map() +
+#   theme(legend.position="bottom")
+
+
+```
+
+well nothing came good from this map trial , was trying to get a more short way to get the map
+of the world data but cant get to it.
+
+
+### model
+
+
+## iteration 1: table 3
 
 ### transform
 
@@ -52,7 +283,28 @@ output: html_document
 
 ### model
 
-## iteration 2
+--
+
+## iteration 1: table 4
+
+### transform
+
+### visualize
+
+### model
+
+--
+
+## iteration 1: table 6
+
+### transform
+
+### visualize
+
+### model
+
+--
+
 
 # Communicate
 
@@ -63,3 +315,22 @@ output: html_document
 
 not related to this week challenge, but to answer " how many branches of the main repo are still active ?"
 may be doing a shiny app ?
+
+
+# Conclusion. 
+
+1.30 hs. 2 / 5 datasets
+
+ton of banging head looking for easy maps.
+
+
+learnt: 
+
+here: for easy locations across a project ; ( self ) 
+janitor: for quick colnames;  ( invasive species r)
+readr: for easy number parsing; ( invasive species r)
+stringr: extract with regex the alpha numeric with country ( invasive species r)
+
+
+thats all for this shot. 
+might come back later.
