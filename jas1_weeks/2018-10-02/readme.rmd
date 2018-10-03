@@ -111,7 +111,87 @@ us_births_2 %>% ggplot( aes(y = births,
 
 ```
 
+### Model
 
+--
+
+## Understand ( iteration 2 )
+
+will be try to put networks point of view on each data set. 
+sometimes can be difficult ... but thats the challenge :p 
+
+this time can be: 
+
+a bipartite graph of:
+
+date of month - day of week
+
+and in the relation the value of births in this case.
+
+
+### Transform
+
+making the bipartite graph , i need the edgelist.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(igraph)
+library(RColorBrewer)
+library(visNetwork)
+
+edgelist <- us_births_2 %>% 
+    mutate(day_of_week_lbl_2 = case_when(
+        day_of_week == 1 ~ "Sunday",
+        day_of_week == 2 ~ "Monday",
+        day_of_week == 3 ~ "Tuesday",
+        day_of_week == 4 ~ "Wednesday",
+        day_of_week == 5 ~ "Thursday",
+        day_of_week == 6 ~ "Friday",
+        day_of_week == 7 ~ "Saturday"
+    )) %>%  
+    group_by(date_of_month,day_of_week_lbl_2,day_of_week) %>% 
+    summarise(births_mean=mean(births),
+              births_amount=sum(births),
+              month_week_day_count=n(),
+              scaled_mean=sc) 
+
+edgelist %>% arrange(births_mean)
+
+graph_transform <- igraph:::graph_from_data_frame(edgelist,directed = FALSE)
+type_day_of_week <- edgelist %>% pull(day_of_week_lbl_2) 
+
+igraph:::V(graph_transform)$type <- igraph:::V(graph_transform)$name %in% type_day_of_week
+
+igraph:::V(graph_transform)$color <- if_else(igraph:::V(graph_transform)$type,"#fb9a99","#aadda8")
+
+# igraph:::is.bipartite(graph_transform)
+
+# range(igraph:::E(graph_transform)$births_mean)
+# hist(igraph:::E(graph_transform)$births_mean)
+# edge_attr_names(graph_transform)
+bin_3_colors <- brewer.pal(3,"BrBG")
+
+edge_color <- data.frame(bmean=igraph:::E(graph_transform)$births_mean) %>% as_tibble()
+edge_color <- edge_color %>% 
+    mutate(color = case_when(
+        bmean < 9500 ~ bin_3_colors[1],
+        bmean >= 9500  & bmean < 11500  ~ bin_3_colors[2],
+        bmean >= 11500  ~ bin_3_colors[3]
+) ) %>%  
+    mutate(title=paste0( "Mean: ",bmean))
+
+igraph:::E(graph_transform)$color <- edge_color$color
+igraph:::E(graph_transform)$title <- edge_color$title
+
+
+
+
+visNetwork::visIgraph(graph_transform) %>% 
+    visNetwork::visIgraphLayout(layout = "layout_as_bipartite") 
+
+```
+
+
+### Visualize
 
 ### Model
 
@@ -119,4 +199,7 @@ us_births_2 %>% ggplot( aes(y = births,
 
 ## Communicate
 
-As can be seen , comparing to other days the fryday 13th birth hypotesis is valid
+As can be seen , comparing to other days the fryday 13th birth hypotesis is valid.
+
+### future work: 
+
