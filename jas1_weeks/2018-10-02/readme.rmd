@@ -25,6 +25,7 @@ https://rviews.rstudio.com/2017/06/08/what-is-the-tidyverse/
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 library(here)
+library(readr)
 library(tibble)
 library(dplyr)
 library(tidyr)
@@ -35,7 +36,7 @@ library(skimr)#install.packages('skimr')
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 us_births_file_location <- here('data','2018-10-02','us_births_2000-2014.csv')
-us_births <- read.csv(us_births_file_location,stringsAsFactors = FALSE)
+us_births <- readr:::read_csv(us_births_file_location)
 
 us_births %>% glimpse() %>% skim()
 ```
@@ -52,22 +53,31 @@ Adding a date field
 library(lubridate)
 library(stringr)
 us_births_2 <-  us_births %>% 
-    mutate(date=ymd(paste0(
-        year,
-        str_pad(month,2,'left','0'),
-        str_pad(date_of_month,2,'left','0'))))
+    mutate(date= lubridate:::make_date(year,month,date_of_month)) %>% 
+    mutate(date_of_month_str=as.factor(date_of_month)) %>% 
+    mutate(day_of_week_lbl=wday(date, label=TRUE)) %>% 
+    mutate(is_friday_13=if_else(date_of_month==13 & day_of_week==6,TRUE,FALSE))
 
 us_births_2 %>% glimpse() %>% skim()
 ```
+
+Just 25 friday 13 over 5454 days
 
 ### Visualize
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 library(ggplot2)
+library(ggridges)#; install.packages("ggridges")
 
 date_of_month_13 <- us_births_2 %>% 
-    filter(date_of_month==13) %>% 
+    filter(is_friday_13) %>% 
     pull(date)
+
+```
+
+To get an idea of how much friday 13th we have in all dataset ( 25 / 5454 )
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
 
 us_births_2 %>%
     ggplot(aes(x=date,y=births)) +
@@ -76,6 +86,28 @@ us_births_2 %>%
     theme(axis.text.x = element_text(
         angle = 90, 
         hjust = 1))
+```
+
+
+To see distributions over time in each month day:
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+us_births_2 %>% 
+    ggplot(
+    aes(x = births, 
+        y = date_of_month_str, 
+        height = ..density..,fill=is_friday_13)) +
+  geom_density_ridges(stat = "density",alpha = 0.5)
+```
+
+To see distributions form another point of view:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+us_births_2 %>% ggplot( aes(y = births, 
+        x = date_of_month_str, fill=is_friday_13)) + 
+    geom_boxplot()
 
 ```
 
@@ -87,5 +119,4 @@ us_births_2 %>%
 
 ## Communicate
 
-* gotta review ggplot & faceting. 
-year / month vline , may be joy division like plots.
+As can be seen , comparing to other days the fryday 13th birth hypotesis is valid
