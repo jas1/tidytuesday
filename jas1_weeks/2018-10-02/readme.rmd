@@ -190,7 +190,6 @@ visNetwork::visIgraph(graph_transform) %>%
 
 ```
 
-
 ### Visualize
 
 ### Model
@@ -200,6 +199,12 @@ visNetwork::visIgraph(graph_transform) %>%
 ## Communicate
 
 As can be seen , comparing to other days the fryday 13th birth hypotesis is valid.
+
+After the graph might be some bias on previos conclusion 
+
+in the graph is clearer the relations on days of week vs number of month
+and the birth means of each date.
+
 
 ### future work: 
 

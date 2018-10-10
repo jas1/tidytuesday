@@ -1,0 +1,102 @@
+---
+title: "Week 20181009"
+author: "_jas"
+date: `r format(Sys.Date())`
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2018-10-09: Voter turnout data
+
+
+## keep it simple:
+
+### Objectives: 
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+https://rviews.rstudio.com/2017/06/08/what-is-the-tidyverse/ 
+
+# Workflow:
+
+## Import
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(skimr)#install.packages('skimr')
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+voters_raw <- here("data","2018-10-09","voter_turnout.csv")
+
+```
+
+## Tidy
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+
+## Understand ( iteration 1 )
+
+### Transform
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+### Visualize
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+
+```
+
+### Model
+
+--
+
+## Understand ( iteration 2 )
+
+### Transform
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+
+### Visualize
+
+### Model
+
+--
+
+## Communicate
+
+
+### future work: 
+
