@@ -1,12 +1,11 @@
 ---
 title: "Week 20181009"
 author: "_jas"
-date: `r format(Sys.Date())`
+date: 20181012
 output: html_document
 ---
 
 # Tidy tuesday challenge: Week 2018-10-09: Voter turnout data
-
 
 ## keep it simple:
 
@@ -19,6 +18,18 @@ output: html_document
 
 https://rviews.rstudio.com/2017/06/08/what-is-the-tidyverse/ 
 
+### this week expected
+
+well its kind of friday so ... just one thing: 
+
+* use the faceted maps through geofacet
+
+http://ryanhafen.com/blog/geofacet
+
+https://hafen.github.io/geofacet/
+
+
+
 # Workflow:
 
 ## Import
@@ -30,18 +41,25 @@ library(tibble)
 library(dplyr)
 library(tidyr)
 library(skimr)#install.packages('skimr')
+library(ggplot2)
+library(geofacet)#install.packages('geofacet')
+# library(sf)#install.packages('sf')
+
 ```
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
-
-voters_raw <- here("data","2018-10-09","voter_turnout.csv")
-
+voters_raw <- readr::read_csv(here::here("data","2018-10-09","voter_turnout.csv"))
 ```
 
 ## Tidy
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(voters_raw)
+voters_raw <- voters_raw %>% rename(id = X1)
 
+skimr::skim(voters_raw)
+
+voters_raw %>% filter(!complete.cases(voters_raw))
 ```
 
 
@@ -49,47 +67,69 @@ voters_raw <- here("data","2018-10-09","voter_turnout.csv")
 
 ### Transform
 
+after a 1st peek , looks like the only problem is that some are missing.
+as being voters data might be several stuff,
+like that year was no election on that state
+or data not gathered in that place. 
+
+so proceeding to make a geofacet directly.
+if for some practicar stuff the NA bring some errors with geofacet, 
+ill impute 0 votes just to get the facet going, 
+in case of a real case, the reason should be further looked out & clarified on the visualization.
+
+as seen on the documentation of geofacet, 
+time data should be transformed to something like:
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
-
+head(state_unemp)
 ```
+
+  year rate state
+1 2000  4.6    AL
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# head(voters_raw)
+# need to add the state codes
+state_df_to_join <- data.frame(state_abb=state.abb,state_name=state.name)
+
+voters_transform_1 <- voters_raw %>% 
+    select(year,state,votes,eligible_voters) %>% 
+    mutate(vote_ratio=votes/eligible_voters) %>% # adding ratio votes / elegible voters
+    left_join(state_df_to_join,by=c('state'='state_name')) %>% 
+    rename(st_name=state, state=state_abb)
+    
+```
+some states are NA, as are not needed , will be ignored
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+voters_transform_1 %>% 
+    filter(is.na(state)) %>% 
+    group_by(state,st_name) %>% 
+    tally()
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+voters_transform_1_no_na <- voters_transform_1 %>% 
+    filter(!is.na(state)) 
+```
+
 
 ### Visualize
 
-```{r echo=FALSE,message=FALSE,warning=FALSE}
-
-```
+making the geofaceted map on the ratio.
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
-
+ggplot(voters_transform_1_no_na, aes(year, vote_ratio)) +
+  geom_line() +
+  facet_geo(~ state, grid = "us_state_grid2", label = "name") +
+  scale_x_continuous(labels = function(x) paste0("'", substr(x, 3, 4))) +
+  labs(title = "Voter turnout data 1980-2014 (bianual)",
+    caption = "Tidytuesday: Week 2018-10-09: 1980-2014 (bianual)",
+    x = "Year",
+    y = "Ratio (votes / eligible_voters )") +
+  theme(strip.text.x = element_text(size = 6))
 ```
-
-
-```{r echo=FALSE,message=FALSE,warning=FALSE}
-
-```
-
-
-```{r echo=FALSE,message=FALSE,warning=FALSE}
-
-
-```
-
-### Model
-
---
-
-## Understand ( iteration 2 )
-
-### Transform
-
-
-```{r echo=FALSE,message=FALSE,warning=FALSE}
-
-```
-
-
-### Visualize
 
 ### Model
 
@@ -97,6 +137,17 @@ voters_raw <- here("data","2018-10-09","voter_turnout.csv")
 
 ## Communicate
 
+its quite easy to make the map. 
+also have a huge amount of differente grids + a grid designer. 
+awsome to take into acount for future works.
 
-### future work: 
+### learnt:
 
+geofacet depends on sf, sf depends on gdal , gdal need version 2.
+https://github.com/r-spatial/sf
+
+also : libmysqlclient-dev its needed by gdal, and not in the line of sf.
+added the issue to add the lib on the redme: https://github.com/r-spatial/sf/issues/862
+
+if something goes wrong on linux packages: broken pkg on linux: 
+https://unix.stackexchange.com/questions/389156/how-to-fix-held-broken-packages
