@@ -27,6 +27,11 @@ this week got an interesting exception, @drob done a screencast on the challenge
 
 https://www.youtube.com/watch?v=nx5yhXAQLxw
 
+after done this ... gone to drob github: 
+https://github.com/dgrtwo/data-screencasts/blob/master/college-majors.Rmd
+
+
+
 it was awsome to see how a person who deal with data everyday works with new data w/o knowing whats about it.
 
 a lot of little workflow thingies arise during the workflow so,
