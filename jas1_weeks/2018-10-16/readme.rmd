@@ -1,0 +1,234 @@
+---
+title: "Week 20181016"
+author: "_jas"
+date: 20181016
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2018-10-16: 538 - Economic Guide to Picking a College Major
+
+## keep it simple:
+
+### Objectives: 
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+https://rviews.rstudio.com/2017/06/08/what-is-the-tidyverse/ 
+
+### this week expected
+
+well its kind of ... friday ... again :p ... 
+i generally dont see tidytuesday responses untill i do mine. 
+
+this week got an interesting exception, @drob done a screencast on the challenge.
+
+https://www.youtube.com/watch?v=nx5yhXAQLxw
+
+it was awsome to see how a person who deal with data everyday works with new data w/o knowing whats about it.
+
+a lot of little workflow thingies arise during the workflow so,
+as im short of time, i'll write the ones that didnt knew, so i got some new stuff on my toolbelt.
+
+in the following i mix some stuff i learnt previously + some screencast stuff that i loved.
+
+
+# Workflow:
+
+## Import
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(skimr)#install.packages('skimr')
+library(scales)#install.packages('scales')
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(plotly)#install.packages('plotly')
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+recent_grads <- readr::read_csv(here::here("data","2018-10-16","recent-grads.csv"))
+```
+
+## Tidy
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(recent_grads)
+recent_grads <- recent_grads %>% janitor::clean_names()
+skimr::skim(recent_grads)
+```
+
+there are some NA
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+recent_grads %>% filter(!complete.cases(recent_grads)) %>% glimpse()
+
+```
+
+
+## Understand ( iteration 1 )
+
+### Transform
+
+removing NA's: just for the sake of practice, but in real case should evaluate WHY it is NA.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+recent_grads_no_NA <- recent_grads %>% filter(complete.cases(recent_grads))
+
+recent_grads_no_NA
+```
+
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+
+### Visualize
+
+Variability by major category:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+recent_grads_no_NA %>% 
+    mutate(major_category=fct_reorder(major_category,median)) %>% 
+    ggplot(aes(major_category,median,fill=major_category)) +
+    geom_boxplot() +
+    scale_y_continuous(labels = dollar_format())+
+    labs(title="Variability by major category",
+         subtitle="",
+         x="",
+         y="Median")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light() + # theme light
+    theme(legend.position = "none") # no legend just colors for categories.
+
+```
+
+total of graduates
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+recent_grads_no_NA %>% 
+    count(major_category,wt=total,sort=TRUE) %>% 
+    mutate(major_category=fct_reorder(major_category,n)) %>%
+    ggplot(aes(major_category,n,fill=major_category)) +
+    geom_col() +
+    scale_y_continuous(labels = comma_format())+
+    labs(title="Major categories more common",
+         subtitle="",
+         x="",
+         y="Total # Graduates")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light() + # theme light
+    theme(legend.position = "none") # no legend just colors for categories.
+
+```
+
+majors, categories , amount of graduates
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+recent_grads_no_NA %>% 
+    mutate(major=fct_reorder(major,total)) %>%
+    arrange(desc(total)) %>% 
+    head(20) %>% 
+    ggplot(aes(major,total,fill=major_category)) +
+    geom_col() +
+    scale_y_continuous(labels = comma_format())+
+    labs(title="Major categories more common",
+         subtitle="",
+         x="",
+         y="Total # Graduates")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light() + # theme light
+    theme(legend.position = "none") # no legend just colors for categories.
+
+```
+
+
+sample size vs median
+
+because sample size if small it should no be taken in account.
+this visualization helps getting the idea where to make a cutoff.in case needed.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+recent_grads_no_NA %>%
+    ggplot(aes(sample_size,median)) +
+    geom_point()+
+    # geom_text(aes(label=major),check_overlap = TRUE,vjust=1,hjust=1)+ # nice but much
+    scale_x_log10()
+    
+```
+
+
+majors, categories , amount of graduates by gender
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+recent_grads_no_NA %>% 
+    arrange(desc(total)) %>% 
+    head(20) %>%
+    mutate(major=fct_reorder(major,total)) %>%
+    gather(gender,number,men,women) %>% 
+    ggplot(aes(major,number,fill=gender)) +
+    geom_col() +
+    scale_y_continuous(labels = comma_format())+
+    labs(title="Major categories more common by gender",
+         subtitle="",
+         x="",
+         y="Total # Graduates")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light() 
+
+```
+
+last one, regresion to see if its correlated gender and low income.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+for_interactive_graph <- recent_grads_no_NA %>% 
+    mutate(major_category=fct_lump(major_category,4)) %>%
+    ggplot(aes(share_women,median,color=major_category,size=sample_size,label=major)) +
+    geom_point() +
+    geom_smooth(aes(group=1),method="lm") +
+    expand_limits(y=0)+
+    scale_y_continuous(labels = dollar_format())+
+    labs(title="relation share woman / median income by major category",
+         subtitle="",
+         x="share woman",
+         y="median income")+
+    theme_light() # theme light
+
+ggplotly(for_interactive_graph)
+
+```
+
+### Model
+
+--
+
+## Communicate
+
+This time was more of a " how to replicate some cool stuff" than things that i thought myself; nevertheless more tools on the belt =) 
+
+### learnt:
+
+it was cool to see the workflow, and how lots of concepts come togheter into an exploratory analysis.
+
+cool stuff: 
+
+- the factors package ( forcats, and fct_reorder )
+- the easy ggplot labels ( labs: title, subtitle, x,y  ), always forgot about it
+- ggplot remove side reference ( theme(legend.position = "none") )
+- the changes on ggplot labels ( dollar_format() ; comma_format() )
+- the way of constructing it to an interesting stuff & ordering it for a final pruduct, a blog post.
+
+### future work: 
+
+try to evolve to something like this and spend less amount of time on tech stuff.
+more analizing
