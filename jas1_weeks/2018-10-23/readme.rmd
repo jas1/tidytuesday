@@ -46,6 +46,7 @@ library(scales)
 library(ggplot2)
 library(forcats)
 library(lubridate)
+library(cowplot)#install.packages('cowplot')
 # library(geofacet)#install.packages('geofacet')
 # library(sf)#install.packages('sf')
 
@@ -69,38 +70,460 @@ skimr::skim(horror_movies)
 horror_movies %>% filter(!complete.cases(horror_movies))
 ```
 
+### valid date range ?
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+range(horror_movies$release_date_d )
+```
+
+looks like there is future movies ... well they might be still in production.
+also ... to be aware of sample ... which is the sample date cutpoint ?
+
+wich is the cutpoint of the sample ?
+
+evaluated by year can thing on 2018 , but lets see by month, as 2018 its not finished yet.
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+horror_movies %>% 
+    # filter(domestic_gross == 0) %>%  
+    arrange(desc(release_date_d)) %>% 
+    select(movie, release_date_d, production_budget,domestic_gross,worldwide_gross) %>% 
+    mutate(year=year(release_date_d),month = month(release_date_d)) %>% 
+    group_by(year,month) %>% 
+    summarise(number_of_movies=n(),
+              domestic_gross_total = sum(domestic_gross),
+              worldwide_gross_total= sum(worldwide_gross),
+              production_budget_total=sum(production_budget)) %>% 
+    arrange(desc(year),desc(month)) %>% 
+    head(10)
+```
+
+looks like today might be a good cut point ( today = "2018-10-23")
+
+which movies should be excluded  ?
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+horror_movies %>% filter(release_date_d > ymd("2018-10-23")) %>%  select(movie, release_date_d, production_budget)
+```
+
+
+for this analysis this 4 movies will be excluded.
+date its taken as ( today = "2018-10-23")
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+horror_movies_bkp <- horror_movies
+horror_movies <- horror_movies %>% filter(release_date_d <= ymd("2018-10-23"))
+```
+
+## future work:
+
+its an interesting point of view as ... 
+can movies be capitalized before release date ?
+
+my guess sure thing, pre event marketing & other hype stuff.
+
+how much time before release can get this pre event capitalizations going ?
+can it be measured in someway ?
+
+
 
 ## Understand ( iteration 1 )
 
+* wich are the most profitable movies of all time ? ( gross / budget | ww_gross / budget)
+* how ratio vary over decades ( gross / budget | ww_gross / budget)
+* how genres vary over decades ( count movies / genre / time span)
+* how genres vary over decades ( profitable movies / genre / time span)
+
+for all this quiestions, none is affected by the NA's
+for later we'll like to see what about NA's ( mpaa_rating / distributor) ; may be related to time stuff.
+
+
 ### Transform
 
+to answer profit answers gotta make some columns 
+to answer time span ( decade ) answers we also gotta add the decade to the movies
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 
+horror_movies <- horror_movies %>% 
+    mutate(usa_profit_ratio = domestic_gross / production_budget) %>% 
+    mutate(ww_profit_ratio = worldwide_gross / production_budget) %>% 
+    mutate(usa_profit = domestic_gross - production_budget) %>% 
+    mutate(ww_profit = worldwide_gross - production_budget) %>% 
+    mutate(usa_ww_gross_ratio = domestic_gross / worldwide_gross) %>% 
+    mutate(usa_ww_profit_ratio = usa_profit / ww_profit) %>% 
+    mutate(usa_ww_profit_ratio_ratio = usa_profit_ratio / ww_profit_ratio) %>% 
+    mutate(decade = as.factor(floor(year(release_date_d)/10)*10)) %>% 
+    mutate(month = as.factor(month(release_date_d)))
+
 ```
+
+
+#### wich are the most profitable movies of all time ? ( gross / budget | ww_gross / budget)
+
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 
+
+
+
+# movie - genre - location - type - value : gotta practice gather.
+# horror_movies %>% 
+#     select(movie,genre, usa_profit_ratio,ww_profit_ratio,
+#            usa_profit,ww_profit,
+#            usa_ww_profit_ratio,usa_ww_profit_ratio_ratio) %>% 
+#     gather(location,value,genre, usa_profit_ratio,ww_profit_ratio,
+#            usa_profit,ww_profit,
+#            usa_ww_profit_ratio,usa_ww_profit_ratio_ratio)
+
+plot_usa_profit_genre <- horror_movies %>% 
+    ggplot(aes(genre,usa_profit/1000,fill=genre)) +
+    geom_boxplot() +
+    scale_y_continuous(labels = dollar_format())+
+    labs(title="All time: Movies",
+         subtitle="USA profit by genre",
+         x="",
+         y="gross - prod budget, in K USD")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light() + # theme light
+    theme(legend.position = "none")
+
+plot_ww_profit_genre <- horror_movies %>% 
+    ggplot(aes(genre,ww_profit/1000,fill=genre)) +
+    geom_boxplot() +
+    scale_y_continuous(labels = dollar_format())+
+    labs(title="All time: Movies ",
+         subtitle="World Wide profit by genre",
+         x="",
+         y="gross - prod budget, in K USD")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light() + # theme light
+    theme(legend.position = "none")
+
+plot_grid(plot_usa_profit_genre, plot_ww_profit_genre)
+
 ```
+
+if movies are evaluated by profit, top outliers will be more successfull; down outliers will be big loses.
+ranges move from -200k to 1.2M aproximattly,
+ww vs usa, tend to be similar, but less outliers on the loses. only drama got an outlier on the lower bound if seen ww.
+
+### lets check the WW - usa: gross / budget ratio
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+plot_usa_profit_ratio_genre <- horror_movies %>% 
+    ggplot(aes(genre,usa_profit_ratio,fill=genre)) +
+    geom_boxplot() +
+    # scale_y_continuous(labels = dollar_format())+
+    labs(title="All time: Movies",
+         subtitle="USA profit ratio by genre",
+         x="",
+         y="gross / prod budget, times budget")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light() + # theme light
+    theme(legend.position = "none")
+
+plot_ww_profit_ratio_genre <- horror_movies %>% 
+    ggplot(aes(genre,ww_profit_ratio,fill=genre)) +
+    geom_boxplot() +
+    # scale_y_continuous(labels = numdollar_format())+
+    labs(title="All time: Movies ",
+         subtitle="World Wide profit ratio by genre",
+         x="",
+         y="gross / prod budget, times budget")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light() + # theme light
+    theme(legend.position = "none")
+
+plot_grid(plot_usa_profit_ratio_genre, plot_ww_profit_ratio_genre)
+```
+
+if movies are evaluated by profit ratio , top outliers will be the more succesfull. 
+we cross check that horror movies are the more profitable ones, follwoed by drama, and comedy.
+
+#### Lets see times budget ratio on top 20 movies.
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 
+plot_ww_profit_ratio_top_20_order_usa <- horror_movies %>% 
+    select(movie,usa_ww_profit_ratio_ratio,usa_profit_ratio,ww_profit_ratio) %>% 
+    arrange(desc(usa_profit_ratio)) %>% 
+    head(20) %>% 
+    mutate(movie=fct_reorder(movie,usa_profit_ratio)) %>%
+    gather(ratio_type,value,usa_profit_ratio,ww_profit_ratio) %>% 
+    ggplot(aes(movie,value,fill=ratio_type)) +
+    geom_col() +
+    scale_y_continuous(labels = comma_format())+
+        labs(title="All time: Movies top #20 ",
+         subtitle="profit ratio by usa/ww order usa",
+         x="",
+         y="gross / prod budget, times budget")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+
+plot_ww_profit_ratio_top_20_order_ww <- horror_movies %>% 
+    select(movie,usa_ww_profit_ratio_ratio,usa_profit_ratio,ww_profit_ratio) %>% 
+    arrange(desc(ww_profit_ratio)) %>% 
+    head(20) %>% 
+    mutate(movie=fct_reorder(movie,ww_profit_ratio)) %>%
+    gather(ratio_type,value,usa_profit_ratio,ww_profit_ratio) %>% 
+    ggplot(aes(movie,value,fill=ratio_type)) +
+    geom_col() +
+    scale_y_continuous(labels = comma_format())+
+        labs(title="All time: Movies top #20 ",
+         subtitle="profit ratio by usa/ww order ww",
+         x="",
+         y="gross / prod budget, times budget")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+# plot_grid(plot_ww_profit_ratio_top_20_order_usa, plot_ww_profit_ratio_top_20_order_ww,ncol = 1)
+plot_ww_profit_ratio_top_20_order_usa
+plot_ww_profit_ratio_top_20_order_ww
+
+
 ```
 
+#### Tail 20 movies
 
+when it comes to ratio, several got 0 times, so its not worth it seeing it that way 
+we see the raw profit this for tails.
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 
+plot_ww_profit_tail_20_order_usa <- horror_movies %>% 
+    select(movie,usa_ww_profit_ratio_ratio,usa_profit,ww_profit) %>% 
+    arrange(desc(usa_profit)) %>% 
+    tail(20) %>% 
+    arrange(usa_profit) %>% 
+    mutate(movie=fct_reorder(movie,usa_profit)) %>%
+    gather(ratio_type,value,usa_profit,ww_profit) %>% 
+    ggplot(aes(movie,value/1000,fill=ratio_type)) +
+    geom_col() +
+    # scale_y_continuous(labels = comma_format())+
+    scale_y_continuous(labels = dollar_format())+
+        labs(title="All time: Movies tail #20 ",
+         subtitle="profit ratio by usa/ww order usa",
+         x="",
+         y="gross / prod budget, K USD")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+
+plot_ww_profit_tail_20_order_ww <- horror_movies %>% 
+    select(movie,usa_ww_profit_ratio_ratio,usa_profit,ww_profit) %>% 
+    arrange(desc(ww_profit)) %>% 
+    tail(20) %>% 
+    arrange(ww_profit) %>% 
+    mutate(movie=fct_reorder(movie,ww_profit)) %>%
+    gather(ratio_type,value,usa_profit,ww_profit) %>% 
+    ggplot(aes(movie,value/1000,fill=ratio_type)) +
+    geom_col() +
+    scale_y_continuous(labels = dollar_format())+
+    # scale_y_continuous(labels = comma_format())+
+        labs(title="All time: Movies tail #20 ",
+         subtitle="profit ratio by usa/ww order ww",
+         x="",
+         y="gross / prod budget, K USD")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light() 
+
+# plot_grid(plot_ww_profit_ratio_top_20_order_usa, plot_ww_profit_ratio_top_20_order_ww,ncol = 1)
+plot_ww_profit_tail_20_order_usa
+plot_ww_profit_tail_20_order_ww
+
+```
+as we can see if we order by the USA profit ; we see that some loses on USA might not be doomed to failure in Worldwide.
+
+
+#### ADDING TIME 
+
+#### any favorite publication month ?
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+month_view <- horror_movies %>% 
+    
+    group_by(month) %>% 
+    summarise(n=n(),
+              usa_profit_ratio_total=sum(usa_profit_ratio),
+              ww_profit_ratio_total=sum(ww_profit_ratio),
+              usa_profit_total=sum(usa_profit),
+              ww_profit_total=sum(ww_profit))
+month_view %>%
+    ggplot(aes(month,n, fill=month)) +
+    geom_col()+
+    
+    # scale_y_continuous(labels = comma_format())+
+        labs(title="All time: Movies Release months ",
+         subtitle="# relseases by month",
+         x="",
+         y="# relseases")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+
+    
 ```
 
+what about profit by released on a month ?
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+profit_month_usa <- month_view %>%
+    ggplot(aes(month,usa_profit_ratio_total, fill=month)) +
+    geom_col()+
+    
+    # scale_y_continuous(labels = comma_format())+
+        labs(title="All time: Movies Release months ",
+         subtitle="profit usa ",
+         x="",
+         y="times budget")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+profit_month_ww<- month_view %>%
+    ggplot(aes(month,ww_profit_ratio_total, fill=month)) +
+    geom_col()+
+    
+    # scale_y_continuous(labels = comma_format())+
+        labs(title="All time: Movies Release months ",
+         subtitle="profit ww ",
+         x="",
+         y="times budget")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+plot_grid(profit_month_usa, profit_month_ww)
+
+```
+
+#### last of today: over decades
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+decades_view <- horror_movies %>% 
+    
+    group_by(decade) %>% 
+    summarise(n=n(),
+              usa_profit_ratio_total=sum(usa_profit_ratio),
+              ww_profit_ratio_total=sum(ww_profit_ratio),
+              usa_profit_total=sum(usa_profit),
+              ww_profit_total=sum(ww_profit))
+decades_view %>%
+    ggplot(aes(decade,n, fill=decade)) +
+    geom_col()+
+    
+    # scale_y_continuous(labels = comma_format())+
+        labs(title="All time: Movies Release months ",
+         subtitle="# relseases by decade",
+         x="",
+         y="# relseases")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+
+decades_view %>%
+    ggplot(aes(decade,usa_profit_ratio_total, fill=decade)) +
+    geom_col()+
+    
+    # scale_y_continuous(labels = dollar_format())+
+        labs(title="All time: Movies  ",
+         subtitle="# USA times budget by decade",
+         x="",
+         y="# times budget")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+
+decades_view %>%
+    ggplot(aes(decade,ww_profit_ratio_total, fill=decade)) +
+    geom_col()+
+    
+    # scale_y_continuous(labels = dollar_format())+
+        labs(title="All time: Movies decades ",
+         subtitle="# WW times budget by decade",
+         x="",
+         y="# times budget")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+decades_view %>%
+    ggplot(aes(decade,ww_profit_total/1000000, fill=decade)) +
+    geom_col()+
+    
+    scale_y_continuous(labels = dollar_format())+
+        labs(title="All time: Movies decades ",
+         subtitle="# WW profit by decade",
+         x="",
+         y="USD Millons profit")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+
+
+```
+
+#### decades & genres
+
+will  be awsome to do the percent of movies, but too much time invsted ATM.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+gen_decades_view <- horror_movies %>% 
+    
+    group_by(genre,decade) %>% 
+    summarise(n=n(),
+              usa_profit_ratio_total=sum(usa_profit_ratio),
+              ww_profit_ratio_total=sum(ww_profit_ratio),
+              usa_profit_total=sum(usa_profit),
+              ww_profit_total=sum(ww_profit))
+gen_decades_view %>%
+    ggplot(aes(decade,ww_profit_total/1000000, fill=genre)) +
+    geom_col()+
+    
+    scale_y_continuous(labels = dollar_format())+
+        labs(title="All time: Movies decades & genre ",
+         subtitle="# WW profit by decade & genre",
+         x="",
+         y="USD Millons profit")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+
+gen_decades_view %>%
+    ggplot(aes(decade,ww_profit_ratio_total, fill=genre)) +
+    geom_col()+
+    
+    # scale_y_continuous(labels = dollar_format())+
+        labs(title="All time: Movies decades & genre ",
+         subtitle="# WW times budget by decade & genre ",
+         x="",
+         y="# times budget")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+
+gen_decades_view %>%
+    ggplot(aes(decade,n, fill=genre)) +
+    geom_col()+
+    
+    # scale_y_continuous(labels = dollar_format())+
+        labs(title="All time: Movies decades & genre ",
+         subtitle="# movies by decade & genre",
+         x="",
+         y="# movies")+
+    coord_flip() +  # rotate the boxplot as there is not clear 
+    theme_light()
+
+```
 
 ### Visualize
 
 making the geofaceted map on the ratio.
 
-```{r echo=FALSE,message=FALSE,warning=FALSE}
 
-```
 
 ### Model
 
@@ -110,3 +533,9 @@ making the geofaceted map on the ratio.
 
 
 ### learnt:
+
+practiced ggplot bars & some boxplot. 
+
+it was quite interesting :D
+
+wanted to do more but well. enough for today :p 
