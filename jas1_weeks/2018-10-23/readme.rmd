@@ -1,0 +1,112 @@
+---
+title: "Week 20181023"
+author: "_jas"
+date: 20181023
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2018-10-23: Horror Movies and Profit
+
+* article: https://fivethirtyeight.com/features/scary-movies-are-the-best-investment-in-hollywood/
+
+* data: movie_profit.csv
+
+* link to readme: https://github.com/rfordatascience/tidytuesday/tree/master/data/2018-10-23
+
+## keep it simple:
+
+### Objectives: 
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+https://rviews.rstudio.com/2017/06/08/what-is-the-tidyverse/ 
+
+### this week expected
+
+* try to apply some hints from last week
+* think questions to answer with the data given
+* try to drive analysis for what i'll probably like or think
+
+
+# Workflow:
+
+## Import
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(skimr)#install.packages('skimr')
+library(scales)
+library(ggplot2)
+library(forcats)
+library(lubridate)
+# library(geofacet)#install.packages('geofacet')
+# library(sf)#install.packages('sf')
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+horror_movies_raw <- readr::read_csv(here::here("data","2018-10-23","movie_profit.csv"))
+```
+
+## Tidy
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(horror_movies_raw)
+horror_movies <- horror_movies_raw %>% 
+    rename(id = X1) %>% 
+    mutate(release_date_d=mdy(release_date)) %>% 
+    select (-release_date)
+
+skimr::skim(horror_movies)
+
+horror_movies %>% filter(!complete.cases(horror_movies))
+```
+
+
+## Understand ( iteration 1 )
+
+### Transform
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+
+### Visualize
+
+making the geofaceted map on the ratio.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+### Model
+
+--
+
+## Communicate
+
+
+### learnt:
