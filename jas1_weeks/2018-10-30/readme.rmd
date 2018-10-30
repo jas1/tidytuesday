@@ -1,0 +1,327 @@
+---
+title: "Week 20181030"
+author: "_jas"
+date: 20181030
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2018-10-30: Week 31 - R and Package download stats
+
+* https://github.com/rfordatascience/tidytuesday/tree/master/data/2018-10-30
+
+* data: movie_profit.csv
+
+* link to readme: https://github.com/rfordatascience/tidytuesday/tree/master/data/2018-10-23
+
+## keep it simple:
+
+### Objectives: 
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+https://rviews.rstudio.com/2017/06/08/what-is-the-tidyverse/ 
+
+### this week expected
+
+* dont have a clear idea, just doing some stuff for keep constancy
+* by year , by country , by month , by time , by os, by version , by ip ?
+* anonimized ip's: is daily ip code, might be as ... how download more than once a day ?
+* variance by month ?
+* variance by week ?
+
+meh , just got distracted with NA's
+
+
+
+# Workflow:
+
+## Import
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(stringi)
+library(skimr)#install.packages('skimr')
+library(scales)
+library(ggplot2)
+library(forcats)
+library(lubridate)
+library(cowplot)#install.packages('cowplot')
+# library(geofacet)#install.packages('geofacet')
+# library(sf)#install.packages('sf')
+
+library(visdat)#install.packages('visdat')
+library(plotly)#install.packages('plotly')
+library(naniar)#install.packages('naniar')
+library(rpart)#install.packages('rpart')
+library(rpart.plot)#install.packages('rpart.plot')
+
+```
+
+got 2 data sets:
+
+r-downloads.csv - R language downloads from RStudio CRAN mirror on last TidyTuesday for October 23, 2018.
+
+r_downloads_year.csv - A year's worth of R language downloads from RStudio CRAN mirror between October 20, 2017 and October 20, 2018.
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+tidy_cran_r_raw <- readr::read_csv(here::here("data","2018-10-30","r-downloads.csv"))
+year_cran_r_raw <- readr::read_csv(here::here("data","2018-10-30","r_downloads_year.csv"))
+
+glimpse(tidy_cran_r_raw)
+```
+tidy cran: got ~5k vars its easy to work with
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(year_cran_r_raw)
+```
+year cran: got ~938k obs , that will be challenging.
+also the year cran, got an extra colum that can be dropped  (the row id / id.)
+
+1st will do some simple statistics, on simple package then make a function to replicate on bigger one.
+
+
+
+
+## Tidy
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+year_cran_r_raw <- year_cran_r_raw %>% select(-X1)
+```
+
+### tidy exploration
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+tidy_cran_r_raw %>% skimr::skim()
+
+```
+
+
+
+# lets check the NA's on other point of view: 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+vis_dat(tidy_cran_r_raw)
+```
+
+vis dat its quite cool to see less than skimr but it gets really speed for visual people, 
+it helps to comunicate a lot, and get an intuition of dataset visually.
+
+as we see the miss, lets check them visually
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+vis_miss(tidy_cran_r_raw)
+```
+
+quite cool, talking about misses it get more detail. on them also cool percentages.
+
+# let's get more detail about them
+
+
+there is some missing data on  OS & country.
+
+might know if same ips are related ?
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+tidy_cran_r_raw %>% 
+    filter(!complete.cases(tidy_cran_r_raw)) %>%  
+    group_by(ip_id,country,os) %>%  tally()
+
+```
+
+
+we see mumerically , what was shown on de vis_miss plot.
+
+a lot is focused on country, also , missing country do not overlap with OS.
+
+
+we see that there is 3 ips related on all missing data.
+with a quantity of cases: 
+595 total , and one of the ips have all the majority , 584, being the ip 28.
+
+if group by both missing columns, we see that. 
+the majority comes form the not know country.
+meanwhile the lessed affected come from mising OS.
+
+missing country might be some proxy.
+
+Lets get more detail about it on time of downloads.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# tidy_hourly_p <- 
+    tidy_cran_r_raw %>% 
+    filter(!complete.cases(tidy_cran_r_raw)) %>% 
+    mutate(hour = hour(time)) %>% 
+    mutate(ip_id = as.factor(ip_id)) %>% 
+    group_by(ip_id,hour) %>%  tally() %>% 
+    ggplot(aes(hour,n,fill=ip_id)) +
+    geom_col()+
+    labs(title="R Downloads (CRAN) with missing data ",
+         subtitle="Hourly on 2018-10-23",
+         x="",
+         y="# amount of NA",
+         fill="IP (daily anon.)")+
+    coord_flip() +
+    theme_light()
+
+
+# plotly::ggplotly(tidy_hourly_p)
+
+```
+
+about the hourly distribution ... well its spread across the day cannot mention patterns on that.
+
+we see that got a peak on 13 hs. 
+guess its 13hs server time.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+gg_miss_var(tidy_cran_r_raw) + labs(y = "Look at all the missing ones")
+```
+
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+gg_miss_var(tidy_cran_r_raw) + labs(y = "Look at all the missing ones")
+```
+
+
+# Can we model missingness?
+
+* https://cran.r-project.org/web/packages/naniar/vignettes/getting-started-w-naniar.html
+
+https://cran.r-project.org/web/packages/naniar/vignettes/naniar-visualisation.html
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+tidy_cran_r_raw %>%
+  add_prop_miss() %>%
+  head()
+
+tidy_cran_r_raw %>%
+  add_prop_miss() %>%
+  rpart(prop_miss_all ~ ., data = .) %>%
+  prp(type = 4, extra = 101, prefix = "Prop. Miss = ")
+
+```
+
+
+aha ! , tooked the decision criteria as ip_id; 
+that was a intuition i got , this helps me sustain it.
+
+i would like more info on missing data, but the ip id helps clarify.
+also the columns with missing values well ... are missing, other columns can explain that ?
+well it says ip_id.
+
+
+# PHASE 2: the biggie: year data
+
+as i put foucs this week , on missing data, ill try the same issues before but with more registries to see if package deal with them nicely.
+
+* visdat / vis miss: are not usefull for large data.
+-- vis_miss(year_cran_r_raw): warning of downsampling data 
+-- vis_dat(year_cran_r_raw): warning of downsampling data 
+
+thats an awsome mechanism of not killing the  user machine :D
+
+
+about naniar: 
+
+gg_miss_var works awsome; 
+trying to get how it works looks like it prefilters with complete cases
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+gg_miss_var(year_cran_r_raw) + labs(y = "# missings")
+
+```
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+year_cran_r_raw %>% filter(!complete.cases(year_cran_r_raw)) %>%  glimpse()
+```
+
+Looks like same pattern.
+
+now lets try to build a model on top of that, if it still try to get it by ip or other stuff.
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+model_year <- year_cran_r_raw %>% 
+    select (-ip_id,-version) %>% 
+  add_prop_miss() %>%
+  rpart(prop_miss_all ~ ., data = .) 
+
+# model_year %>% prp(type = 4, extra = 101, prefix = "Prop. Miss = ")
+```
+
+well the image its not nice
+
+so lets see if we can explore the model.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+model_year_rules <- rpart.rules(model_year, cover = TRUE) %>% View()
+```
+
+
+rpart objects are not quite happy, so just used view to see the dataframe.
+
+again, the 92% of missing fall under ip; nevertheless this time IP should not be considered as it varies dialy.
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+year_cran_r_raw %>% 
+    filter(!complete.cases(year_cran_r_raw)) %>% 
+    mutate(hour = hour(time)) %>% 
+    mutate(yr_month = as.factor(
+        paste0(year(date),"-",str_pad(string=month(date),
+                                      width = 2,
+                                      side="left",
+                                      pad="0")))) %>% 
+    mutate(ip_id = as.factor(ip_id)) %>% 
+    group_by(yr_month) %>%  tally() %>% 
+    arrange(desc(n)) %>% head(20) %>% 
+    # mutate(yr_month = fct_reorder(yr_month,date)) %>%
+    ggplot(aes(yr_month,n,fill=yr_month)) +
+    geom_col()+
+    scale_y_continuous(labels = comma_format())+
+    theme_light() +
+    theme(legend.position = "none")+
+    labs(title="Amount of R Downloads (CRAN)",
+         subtitle="montly 1 year: 2017-10 -2018-10",
+         x="",
+         y="# of downloads") +
+    coord_flip()
+
+
+# year_cran_r_raw %>% 
+#     filter(!complete.cases(year_cran_r_raw)) %>% 
+#     mutate(hour = hour(time)) %>% 
+#     mutate(month = month(date)) %>% 
+#     # mutate(ip_id = as.factor(ip_id)) %>% 
+#     group_by(ip_id) %>%  tally() %>% 
+#     arrange(desc(n)) %>% glimpse()
+
+```
+
+
+## Communicate
+
+
+### learnt:
+
+- practiced ggplot 
+- practiced na / missing interpretation / search for a reason.
+- it was quite interesting.
+- tryed to reply on bigged dataset it got some issues worth knowing
+- also some variables stopped having some sense ( ip its dialy)
