@@ -1,0 +1,303 @@
+---
+title: "readme.rmd"
+author: "_jas"
+date: 2018-11-06
+output: 
+    html_document
+---
+
+
+# Tidy tuesday challenge 2018-11-06: 
+
+
+### Objectives: 
+
+* keep it simple,
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+### news
+
+this week a particular usefull cheatsheet came out:
+
+https://www.business-science.io/r-cheatsheet.html
+
+https://www.business-science.io/assets/2018-11-04-data-science-with-R-cheatsheet/Data_Science_With_R_Workflow.png
+
+### add the tmp folder
+
+it is not on github but you should download the temp data folder
+in this time the shape file from: https://eerscmap.usgs.gov/uswtdb/data/
+
+
+
+
+### this week objective
+
+- clean data
+- ask some question
+- merge with spatial map
+
+
+# proposed questions:
+
+
+* How do newer installations compare to older turbines?
+
+* Which states/regions have the most wind farms?
+
+* Spread of wind-turbines over time?
+
+* Where is the most missing data?
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+library(here)
+library(readr)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(stringi)#; install.packages("stringi")
+library(sf)
+library(ggplot2)
+library(visdat)
+library(naniar)
+library(rpart)
+library(rpart.plot)
+library(plotly)
+library(ggridges)
+library(forcats)
+library(DataExplorer)#; install.packages("DataExplorer")
+
+```
+
+## Import
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wind_raw <- readr::read_csv(here("data","2018-11-06","us_wind.csv"),
+                            na = c("missing",-9999,"n/a"))
+```
+
+## Importing shape
+
+got issues importing the shape file :
+
+Error in CPL_read_ogr(dsn, layer, as.character(options), quiet, type,  : 
+  Open failed.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# wind_shape_raw <- sf::st_read(here("jas1_weeks","2018-11-06","tmp","uswtdbSHP","uswtdbSHP.shp"))
+```
+
+As time goes, ill go for the think i know how to do:
+
+## Where is the most missing data?
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# wind_shape_raw <- sf::st_read(here("jas1_weeks","2018-11-06","tmp","uswtdbSHP","uswtdbSHP.shp"))
+
+# visdat::vis_dat(wind_raw)
+# visdat::vis_miss(wind_raw)
+
+# glimpse(wind_raw)
+
+wind_miss_prop <- wind_raw %>% naniar::add_prop_miss() %>% mutate(have_miss= (prop_miss_all== 0) )
+
+cant <- wind_miss_prop %>% count() %>% pull(n)
+
+complete <- wind_miss_prop %>% arrange(desc( prop_miss_all)) %>% 
+    filter( prop_miss_all== 0) %>% 
+    count() %>% pull(n)
+
+miss <- wind_miss_prop %>% arrange(desc( prop_miss_all)) %>% 
+    filter( prop_miss_all > 0) %>% 
+    count() %>% pull(n)
+
+
+wind_miss_by_state <- wind_miss_prop %>% 
+    group_by(t_state,have_miss) %>% 
+    count() 
+
+
+wind_miss_prop_by_state <- wind_miss_prop %>% 
+    group_by(t_state,have_miss) %>% 
+    count() %>% 
+    spread(have_miss,n,fill = 0) %>% 
+    rename(miss='TRUE',complete='FALSE') %>% 
+    mutate(miss_percent=round(miss/complete*100,2))
+
+skimr::skim(wind_raw)
+plot_miss <- naniar::gg_miss_var(wind_raw) + 
+    labs(title="Wind turbines dataset amount of missing values",
+         subtitle="complete: 20.26%, missing 79.73%",y = "# Missings")
+
+plotly::ggplotly(plot_miss)
+
+
+    
+
+
+wind_miss_by_state %>% 
+    arrange(desc(n)) %>% 
+    ungroup() %>% 
+    mutate(t_state=fct_reorder(t_state,n)) %>% 
+    ggplot(aes(x=t_state,y=n,fill=have_miss)) +
+    geom_col() +
+    labs(x="",y="# cases",title="Missing Values by State")+
+    coord_flip()
+
+
+
+# 
+# 100 * miss / cant
+# 100 * complete / cant
+```
+## lets give other package a chance: Data explorer
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+DataExplorer::create_report(wind_raw)
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# Geospatial data available in the geojson format!
+library(geojsonio)
+spdf <- geojson_read("https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/communes.geojson",  what = "sp")
+ 
+# Since it is a bit to much data, I select only a subset of it:
+spdf = spdf[ substr(spdf@data$code,1,2)  %in% c("06", "83", "13", "30", "34", "11", "66") , ]
+ 
+# I need to fortify the data AND keep trace of the commune code! (Takes 2 minutes)
+library(broom)
+spdf_fortified <- tidy(spdf, region = "code")
+ 
+# Now I can plot this shape easily as described before:
+ggplot() +
+  geom_polygon(data = spdf_fortified, aes( x = long, y = lat, group = group)) +
+  theme_void() +
+  coord_map()
+
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wind_raw %>% 
+    group_by(p_year,t_state,t_county) %>% 
+    summarise(n_turbines=n()) %>% 
+    arrange(desc(n_turbines)) %>% 
+    filter(is.na(p_year))
+
+wind_raw %>% 
+    group_by(p_year,t_state,t_county) %>% 
+    summarise(n_turbines=n()) %>% 
+    arrange(desc(n_turbines)) %>% 
+    filter(is.na(p_year))
+
+```
+
+Looks like there are some missing years. ( 62 )
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wind_raw %>%  filter(complete.cases(wind_raw)) %>%  count()
+wind_raw %>%  filter(!complete.cases(wind_raw)) %>%  count()
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+
+wind_raw %>% 
+    group_by(p_year,t_state,t_county) %>% 
+    summarise(n_turbines=n()) %>% 
+    arrange(desc(n_turbines)) %>% 
+    filter(p_year>2000) %>% 
+    ggplot(aes(x=n_turbines, y=as.character(p_year)))+
+        geom_density_ridges(alpha = 0.2)+
+    theme_light() +
+    labs(x="# turbines",
+         y="", 
+         title="Amount of turbines per year")
+
+wind_raw %>% mutate(p_name=fct_lump(p_name,7))%>% count(p_name) 
+wind_raw %>% count(p_name) %>% arrange(desc(n))
+wind_raw %>% count(t_state) %>% arrange(desc(n))
+
+wind_raw %>% 
+    group_by(p_year,t_state,t_county) %>% 
+    summarise(n_turbines=n()) %>% 
+    arrange(desc(n_turbines)) %>% 
+    filter(p_year<2000) %>% 
+    ggplot(aes(x=n_turbines, y=as.character(p_year)))+
+        geom_density_ridges(alpha = 0.2)+
+    theme_light() +
+    labs(x="# turbines",
+         y="", 
+         title="Amount of turbines per year")
+
+
+```
+
+
+# communicate
+
+## half done
+
+map things ... always got some issues with them :/ ; generally run out of time or got some issues.
+
+have to work on that  :/ 
+
+also have some issues with git ignore patterns , as i download the map data ( shp & geojson ) 
+but i do not want to commit to repository. 
+
+* solved
+
+was related to rstudio thingie, y clicked staged , then updated the git ignore, and gotta unclick staged after that the file disapeaerd from the list.
+
+## inspirations
+
+
+## findings
+
+well this week was kinda accidental ... so started with missings then time gone out. 
+
+after that as was not happy with result, i started peeking others stuff on twitter & youtube.
+
+- new tools that save a lot of time on missing data & initial exploring: 
+
+the DataExplorer package.
+https://twitter.com/dataandme/status/1059868547097264129
+
+also take attention to natural segmented data as turbines(t_) Vs other as they might be usefull to make a subdataset and insights on them. ( as drob said)
+
+## future works:
+
+- use gganimate as proposed by @drob
+https://www.youtube.com/watch?v=O1oDIQV6VKU
+https://twitter.com/drob/status/1060191453874401280
+
+
+- interesting tweets: 
+
+super clean map + waffle plots
+https://twitter.com/harrocyranka/status/1059810939929804800
+https://github.com/hrbrmstr/waffle
+
+cluster analysis + multiple maps:
+https://twitter.com/TannerKoomar/status/1059868181488119808
+
+gif + 
+https://twitter.com/EvaMaeRey/status/1049797083060813824 
+
+pretty barchart + highlighted bars:
+https://twitter.com/ak88_est/status/1059927053716385792 
+
+turbine characteristics + segmented by image source
+https://twitter.com/DataVizJohansen/status/1059829569170104320
+
+map wishlist:
+
+https://twitter.com/k_j_norris/status/1060196410291875840
+https://www.r-graph-gallery.com/327-chloropleth-map-from-geojson-with-ggplot2/
+https://twitter.com/m_cadek/status/1060150590687318017

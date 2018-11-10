@@ -32,3 +32,10 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 .Rproj.user
+
+# temp files that should be used but too large
+# remember to specify reference on the corrispending readme
+jas1_weeks/**/tmp/*
+#jas1_weeks/**/tmp/*
+#**/tmp/*.*
+#jas1_weeks/2018-11-06/tmp/*
