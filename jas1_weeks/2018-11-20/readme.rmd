@@ -1,0 +1,251 @@
+---
+title: "week 2018-11-20 challenge"
+author: "_jas"
+date: 20181023
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2018-11-20
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+- thanksgiving
+- tdor (  Transgender Day of Remembrance )
+
+will go for tdor, as looks like more world related =).
+
+## import data
+
+data comes from package: 
+details on: https://github.com/CaRdiffR/tdor
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(janitor)#install.packages('janitor')
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(DataExplorer)#install.packages('DataExplorer')
+
+library(remotes)#install.packages('remotes')
+install_github("CaRdiffR/tdor")
+library(tdor)
+
+library(tmap)#install.packages('tmap')
+library(magick)#install.packages('remotes')
+library(gganimate)#install.packages('gganimate')
+library(sf)
+# install.packages('ncdf4', type = "source")
+data("World")
+
+# library(skimr)#install.packages('skimr')
+# library(scales)
+# library(ggplot2)
+# library(forcats)
+# library(lubridate)
+# library(cowplot)#install.packages('cowplot')
+# library(geofacet)#install.packages('geofacet')
+# library(sf)#install.packages('sf')
+
+tdor_raw <- janitor::clean_names(tdor::tdor)
+```
+
+# Dataset technical exploration
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# glimpse(tdor_raw)
+```
+
+as we can see we got a lot of NAs, to 
+
+visually exploring missing data:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+DataExplorer::plot_missing(tdor_raw)
+
+```
+
+lets keep no missings or green missings.
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+tdor_small_missing <- tdor_raw %>% select(-date_1,-source,-tgeu_ref,-photo_source,-photo)
+```
+
+# Checking ages:
+
+- might be a range or aproximation: as consecuence we need to lookout before making any graph.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+amount_not_taken <- tdor_small_missing %>% filter(str_length(age)>2 ) %>% nrow()
+total_amount <- tdor_small_missing %>% nrow()
+
+tdor_age_filter <- tdor_small_missing %>% filter(str_length(age)<=2 ) %>% 
+    mutate(five_yrs_min = factor(ceiling(as.integer(age)/5)*5)) %>% 
+    mutate(five_yrs_max = factor(floor(as.integer(age)/5)*5)) %>% 
+    mutate(five_yrs = paste0(five_yrs_max,"-",five_yrs_min))
+
+tdor_age_filter  %>% 
+    count(five_yrs) %>%  
+    ggplot(aes(x=five_yrs,y=n,fill=five_yrs)) + 
+    geom_col()+
+    scale_colour_grey(aesthetics = "fill") +
+    coord_flip()+
+    labs(title="Transgender deaths by age, 5 year bin",
+         subtitle = paste0("age ranges not taken in account (",amount_not_taken," / ",total_amount," registries)"),
+         caption = "TDOR data 2018",
+         x="",y="# deaths")+
+    theme_light()+
+    theme(legend.position = "none")
+```
+
+# Lets check by country:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+tdor_age_filter <- tdor_small_missing %>% filter(str_length(age)<=2 ) %>% 
+    mutate(five_yrs_min = factor(ceiling(as.integer(age)/5)*5)) %>% 
+    mutate(five_yrs_max = factor(floor(as.integer(age)/5)*5)) %>% 
+    mutate(five_yrs = paste0(five_yrs_max,"-",five_yrs_min))
+
+
+country_names <- maps::iso3166 %>%  
+    mutate(mapname_l=str_to_lower(mapname),
+           ISOname_l=str_to_lower(ISOname)) %>% 
+    count(mapname_l,ISOname_l,a3) %>% select(-n) %>% 
+    mutate(std_iso=mapname_l) %>% 
+    mutate(std_map=ISOname_l)
+# 
+# country_names %>% filter(str_detect(country_std,"China"))
+# country_names %>% filter(str_detect(std_iso,"Trinidad and Tobago") | 
+#                              str_detect(std_map,"Trinidad"))
+# country_names %>% filter(str_detect(ISOname_l,"united kingdom"))
+# 
+# country_names %>% filter(str_detect(ISOname_l,"united kingdom")) %>% pull(ISOname_l)
+# 
+# maps::iso3166 %>% filter(str_detect(ISOname,"Great Britain"))
+
+tdor_age_filter_map <- tdor_age_filter %>% 
+    mutate(country_l=str_to_lower(country)) %>% 
+    mutate(country_l=if_else(country_l=="united kingdom",
+                             "united kingdom of great britain and northern ireland",
+                             country_l)) %>% 
+    left_join(country_names,by=c("country_l"="ISOname_l"),suffix = c("_tdor","_iso")) %>% 
+    left_join(country_names,by=c("country_l"="mapname_l"),suffix = c("_tdor_iso","_map")) %>% 
+    mutate(iso_a3=if_else(is.na(a3_map),a3_tdor_iso,a3_map)) 
+
+tdor_map_count_by_year <- tdor_age_filter_map %>% count(iso_a3,year) %>% rename(deaths=n)
+
+# glimpse(tdor_age_filter_map)
+
+```
+
+# gganimate yearly 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(maps)
+# library(ggmap)
+world_tdor <- World %>% left_join(tdor_map_count_by_year,by=c("iso_a3"="iso_a3")) %>%
+    select(iso_a3,name,continent,year,deaths,geometry)
+
+# for each year add NA deaths
+tdor_all_years <- tdor_map_count_by_year %>% count(year) %>% pull(year)
+tdor_all_countries <- World %>% filter(iso_a3!="ATA")%>%  pull(iso_a3) # all countries except antartica
+
+# tdor_miss_country <- World %>%  anti_join(tdor_map_count_by_year,by=c("iso_a3"="a3_code")) %>% pull(iso_a3)
+# all countries and years with miss
+tdor_impute_miss <- purrr::map(tdor_all_countries,function(x){
+    paste0(tdor_all_years,"|",x) }) %>% 
+    unlist() %>% data.frame(stringsAsFactors = FALSE) %>%
+    rename(yr_cont=".") %>% as_tibble() %>% 
+    separate(col = yr_cont,into=c("year","iso_a3"),sep = "\\|") %>% 
+    mutate(year=as.integer(year),iso_a3=as.character(iso_a3)) %>% 
+    mutate(deaths=NA)
+
+#
+world_tdor_imputed_2 <- World %>% # to world 
+    select(iso_a3,name,continent,geometry) %>%  # extract columns of interest
+    filter(iso_a3!="ATA") %>%  # remove antartica
+    left_join(tdor_impute_miss,by=c("iso_a3"="iso_a3")) %>% # join on impute NA
+    left_join(tdor_map_count_by_year,by=c("iso_a3","year")) %>% 
+    mutate(deaths=deaths.y) %>%
+    select(-deaths.x,-deaths.y) %>% 
+    mutate(year=factor(year))
+
+glimpse(world_tdor_imputed_2)
+ 
+world_tdor_imputed_3857 <- sf::st_transform(world_tdor_imputed_2, "+init=epsg:3857")
+world_tdor_imputed_3857_gif <- world_tdor_imputed_3857%>% 
+    ggplot()+
+    geom_sf(aes(fill=deaths))+
+    # theme_void()+
+  theme(axis.title=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks = element_blank(),
+        strip.text.y = element_text(size = 10),
+        panel.background=element_rect(fill="white"))+
+    scale_fill_gradient(low="blue", high="red",na.value = "black")+
+    gganimate::transition_manual(year,frames = year)+
+        labs(title="Transgender deaths by year a country {current_frame}",
+         subtitle = paste0("age ranges not taken in account (",amount_not_taken," / ",total_amount," registries)"),
+         caption = "TDOR data 2018",
+         x="",y="") #%>% gganimate::save_animation(file = "tdor_yearly_2018.gif",)
+
+# gganimate::anim_save(filename = "tdor_yearly_2018.gif")
+world_tdor_imputed_3857_gif
+```
+
+# tmap yearly 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+tdor_yearly_map <- tmap::tm_shape(world_tdor_imputed_2) +
+    tm_polygons("deaths")+
+    tm_facets(by = "year", nrow=1,ncol=1) +
+    tm_legend(#legend.position = c("left", "top"),
+      main.title = "Transgender deaths by year and country",
+      # title="per 1000 population at risk",
+      main.title.size=0.75,
+      title.size=0.25,
+      legend.text.size=0.25,
+      legend.hist.size=0.25,
+      # main.title.position = "right",
+      legend.outside=TRUE,
+      legend.show=FALSE,
+      # title.snap.to.legend=FALSE,
+      title.position = c("right","bottom"),
+      legend.position = c("right","top"))
+
+tmap_animation(tdor_yearly_map, filename="tdor_yearly_map.gif", width=800, delay=100)
+
+```
+
+# communicate:
+
+## data improvments:
+
+- data labels: suggest snake case: use janitor::clean_names
+- age: year 1 ?: might be wrong ?
+- age: add age bins ? ( 5 / 10 years): so specific age miss can be taken in account
+- cause of death: some typos , can be improved via openrefine clustering for similarities.
+- cause of death: might be handled as a list ?
+- cause of death: some other language issues (ex: 'desmembramiento')
+- country: may be add 3 leter code to easier data crossing.
