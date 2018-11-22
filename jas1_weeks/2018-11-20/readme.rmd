@@ -249,3 +249,11 @@ tmap_animation(tdor_yearly_map, filename="tdor_yearly_map.gif", width=800, delay
 - cause of death: might be handled as a list ?
 - cause of death: some other language issues (ex: 'desmembramiento')
 - country: may be add 3 leter code to easier data crossing.
+
+
+## some data lessons
+
+- take in account map view, and transform map views to see maps better
+- gganimate, labels & save gif
+- maps & missing data, how to plot it acordingly. specially for animations, remember to add missing for each transition.
+-  late but this data, and data concept its about ppl , should take in account to next time, about naming not only statistics.
