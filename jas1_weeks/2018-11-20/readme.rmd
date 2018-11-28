@@ -48,15 +48,22 @@ library(visdat)#install.packages('visdat')
 library(stringr)
 library(DataExplorer)#install.packages('DataExplorer')
 
+#install.packages('lattice')
+#install.packages('sp')
+#install.packages('raster')
+#install.packages('leaflet')
+#install.packages('stars')
+#install.packages('satellite')
+
 library(remotes)#install.packages('remotes')
 install_github("CaRdiffR/tdor")
 library(tdor)
 
 library(tmap)#install.packages('tmap')
-library(magick)#install.packages('remotes')
+library(magick)#install.packages('magick')
 library(gganimate)#install.packages('gganimate')
-library(sf)
-# install.packages('ncdf4', type = "source")
+library(sf)# install.packages('sf')
+# install.packages('ncdf4', type = "source")#sudo apt install netcdf-*
 data("World")
 
 # library(skimr)#install.packages('skimr')
