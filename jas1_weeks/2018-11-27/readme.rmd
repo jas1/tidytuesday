@@ -1,0 +1,291 @@
+---
+title: "week 2018-11-27"
+author: "julio"
+date: "2018-11-27"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2018-11-27
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+- baltimore bridges
+- some animation to practice > cool stuff
+- some map to practice > location
+- some model to practice > predict 'ok'ness
+
+
+## import data
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(janitor)#install.packages('janitor')
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(DataExplorer)
+library(rpart)
+# library(cluster)
+library(leaflet)
+```
+
+raw data:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+bridges_raw <- readr::read_csv(here::here("data","2018-11-27","baltimore_bridges.csv"))
+glimpse(bridges_raw)
+```
+
+looks like vehicles and avg_dialy_traffic are the same. lets check
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+bridges_raw %>% 
+    mutate(vehicles_no_text=readr::parse_number(vehicles)) %>%
+    mutate(eq_number=avg_daily_traffic==vehicles_no_text) %>% 
+    count(eq_number)
+
+```
+
+yap. its replicated.
+
+now lets take a look at owner / responsability
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+bridges_raw %>% 
+    mutate(eq_number=owner==responsibility) %>% 
+    count(eq_number)
+
+bridges_raw %>% 
+    mutate(eq_number=owner==responsibility) %>% 
+    count(owner,responsibility,eq_number) %>% 
+    filter(eq_number==FALSE)
+
+bridges_raw %>% 
+    mutate(eq_number=owner==responsibility) %>% 
+    count(owner,responsibility,eq_number) %>% 
+    filter(is.na(eq_number))
+
+```
+don't happen the same, are a few with different number and some NA's
+
+lets check NA generally:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+DataExplorer::plot_missing(bridges_raw)
+```
+
+after this see that responsability and owner are not that bad in NA's lets check which cases are:
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+bridges_raw %>% filter(is.na(responsibility) | is.na(owner))
+
+```
+
+its weird as its quite new data. but just 2 registries.
+
+about other missing, the total cost, it wont be taken in account in the analysis as 69% its NA 
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+bridges_no_cost <- bridges_raw %>% select(-total_improve_cost_thousands,-vehicles)
+```
+
+about , not the same owner, responsability
+
+hypo: this might get some quality issues , as interests might not be on the same page 
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+bridges_no_cost %>% 
+    filter(owner!=responsibility) %>% 
+    select(owner,responsibility,bridge_condition,yr_built,avg_daily_traffic)
+
+```
+3 of them are not "good"
+2 bad , 1 fair.
+
+
+bridge_condition
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+bridges_no_cost %>%  
+    count(bridge_condition) %>% 
+    mutate(bridge_condition=forcats::fct_reorder(bridge_condition,n)) %>% 
+    ggplot(aes(bridge_condition,n, fill=bridge_condition)) +
+    geom_col() +
+    theme_light() +
+    theme(legend.position = "none")+
+    labs(title="Bridges by condition",
+         x="",
+         y="# bridges")+
+    expand_limits(y = c(0,1500))+
+    coord_flip()+
+    geom_text(aes(label=n), hjust= -0.75) 
+    
+
+```
+
+# some map
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+bridges_no_cost_map <- bridges_no_cost %>% 
+    mutate(bridge_color= case_when( 
+        bridge_condition == "Fair" ~ '#000099',
+        bridge_condition == "Good" ~ '#009900',
+        bridge_condition == "Poor" ~ '#990000'
+    )) 
+
+    palette_fct <- colorFactor(
+        palette = c("#990000","#009900","#000099"), 
+        levels = c("Poor", "Good", "Fair"))
+
+    # pretty colors but get lost on map     
+    # bridges_no_cost_map <- bridges_no_cost %>% 
+    # mutate(bridge_color= case_when( 
+    #     bridge_condition == "Fair" ~ '#619CFF',
+    #     bridge_condition == "Good" ~ '#00BA38',
+    #     bridge_condition == "Poor" ~ '#F8766D'
+    # )) 
+    # 
+    # palette_fct <- colorFactor(
+    #     palette = c("#F8766D","#00BA38","#619CFF"), 
+    #     levels = c("Poor", "Good", "Fair"))
+    
+
+    leaflet() %>%
+    addProviderTiles(providers$OpenStreetMap) %>% 
+    setView(lng= -76.6121893, lat=39.2903848, zoom=13) %>%
+    addCircleMarkers(data=bridges_no_cost_map,
+               radius = 2,
+               color = ~bridge_color,
+               popup = ~paste0(
+                   "avg daily traffic: ",avg_daily_traffic,"<br/>",
+                   "year built: ",yr_built,"<br/>",
+                   "owner: ",owner,"<br/>",
+                   "responsibility: ",responsibility,"<br/>",
+                   "year built: ",yr_built,"<br/>",
+                   "location: [",lat,";",long,"]")) %>% 
+            addLegend(position = "bottomright",
+              pal = palette_fct, 
+              values = c("Poor", "Good", "Fair"))
+
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+status_owner_perc <- bridges_no_cost_map %>% 
+    count(bridge_condition,owner) %>% 
+    rename(condition_owner_n=n) %>% 
+    left_join(bridges_no_cost_map %>% count(owner),by=c("owner"="owner")) %>% 
+    rename(total_owner_n=n) %>% 
+    mutate(ratio_by_owner=condition_owner_n/total_owner_n) %>% 
+    # arrange(desc(ratio_by_owner)) %>% 
+    mutate(owner=forcats::fct_reorder(owner,condition_owner_n)) %>% 
+    filter(!is.na(owner)) %>% 
+    ggplot(aes(owner,ratio_by_owner,fill=bridge_condition)) +
+    geom_col()+
+    theme_light()+
+    scale_fill_manual(values = c("Poor" = "#F8766D", "Good" = "#00BA38", "Fair" = "#619CFF"))+
+    labs(title = "Bridge status by owner",
+         x="",
+         y="% by owner",
+         fill="Bridge condition")+
+    scale_y_continuous(labels = scales::percent_format())+
+    coord_flip()
+# c("Poor" = "#F8766D", "Good" = "#00BA38", "Fair" = "#619CFF")
+# c("A" = "green", "B" = "blue", "C" = "red", "D" = "grey")
+    
+# show_col(hue_pal()(3))
+#R #F8766D
+#G #00BA38
+#B #619CFF
+
+status_owner_n <- bridges_no_cost_map %>% 
+    count(bridge_condition,owner) %>% 
+    rename(condition_owner_n=n) %>% 
+    left_join(bridges_no_cost_map %>% count(owner),by=c("owner"="owner")) %>% 
+    rename(total_owner_n=n) %>% 
+    mutate(ratio_by_owner=condition_owner_n/total_owner_n) %>% 
+    mutate(owner=forcats::fct_reorder(owner,condition_owner_n)) %>% 
+    filter(!is.na(owner)) %>% 
+    ggplot(aes(owner,condition_owner_n,fill=bridge_condition)) +
+    geom_col()+
+    # geom_text(aes(label=total_owner_n), hjust= -0.75) +
+    theme_light()+
+    scale_fill_manual(values = c("Poor" = "#F8766D", "Good" = "#00BA38", "Fair" = "#619CFF"))+
+    labs(title = "Bridge status by owner",
+         x="",
+         y="# by owner",
+         fill="Bridge condition")+
+    scale_y_continuous(labels = scales::number_format())+
+    coord_flip()
+    
+cowplot::plot_grid(status_owner_perc,status_owner_n)
+
+
+```
+
+
+Try some models for explaining the state of the bridge
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# model_tree <- bridges_no_cost %>%   rpart::rpart(bridge_condition ~ ., data = .)
+
+# plot(model_tree)
+
+ # model_year_rules <- rpart.rules(model_year, cover = TRUE) %>% View() 
+
+# glm(bridge_condition ~ ., data = donors, family = "binomial")
+
+# need to do a multi class
+
+# but before that lets see if can cluster in N
+# kmeans(bridges_no_cost %>% filter(complete.cases(bridges_no_cost)),centers = 3)
+
+# bridges_no_cost %>% filter(!complete.cases(bridges_no_cost))
+
+# bridges_no_cost_dummy <- dist(bridges_no_cost %>% filter(complete.cases(bridges_no_cost)),method='binary')
+# head(bridges_no_cost_dummy)
+# cluster_dummy <- hclust(bridges_no_cost_dummy,method = "complete")
+# cluster_h <- cutree(cluster_dummy,k = 3)
+
+# bridges_no_cost <- bridges_no_cost %>% mutate(clsuter_h=cluster_h)
+
+```
+
+# communicate
+
+- focused on bridge condition
+- overall 
+- by owner as # and %
+- also some map practice on leaflet that was really handy :D, should check course deeply ( https://www.datacamp.com/courses/interactive-maps-with-leaflet-in-r )
+
+- well i'll leave models for other time, im happy that got the feel of "should try to explain bridge condition on other variables" but well too much time invested :P . a nice place to start will be drob's screencast: https://www.youtube.com/watch?v=kzM-4jMh9Qs
+
+
+
+
