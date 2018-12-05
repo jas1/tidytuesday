@@ -1,0 +1,266 @@
+---
+title: "Week 2018-12-04"
+author: "julio"
+date: "4 de diciembre de 2018"
+output: html_document
+---
+
+
+# Tidy tuesday challenge: Week 2018-12-04
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+- oh ! text mining :D looks like an awsome bet :D
+- might be usefull to try to explain tags by the title + subtitle text. ( more difficult )
+
+
+## import data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(janitor)#install.packages('janitor')
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(DataExplorer)
+library(tidytext)
+library(wordcloud2)#install.packages("wordcloud2")
+library(cowplot)#install.packages('cowplot')
+# library(rpart)
+# library(cluster)
+# library(leaflet)
+```
+
+raw data:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+medium_raw <- readr::read_csv(here::here("data","2018-12-04","medium_datasci.csv"))
+glimpse(medium_raw)
+```
+
+can x1 be the id ?
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+medium_raw %>% count(x1) %>% filter( n>1 )
+# medium_raw %>% filter(title == "-") %>% cou
+
+```
+nope , its not. at leas tby itself; so lets exclude it.
+also lets add a date field
+lets peek at titles
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+medium_raw %>% count(title,sort = TRUE) %>% arrange(desc(n))
+
+```
+eek that doesnt look right ...
+omg:  NA, . , and a lot of senese less stuff; might be some UTF & other language stuff + bad data
+that will be out.
+
+lets look at URL, as it might be like " an id " , as you publish one article.
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+medium_raw %>% count(url,sort = TRUE) %>% arrange(desc(n))
+
+```
+
+ok 1 article per URL
+
+lets filter the titles that will give some text mining language meaning ,
+the ones that contain alphabetic characters
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+tmp_features <- medium_raw %>% count(title,sort = TRUE) %>% 
+    filter(!is.na(title )) %>% # title not empty
+    mutate(have_non_alnum=str_detect(title,"[^[:alnum:] ]")) %>% # got non numbers or leters
+    mutate(have_numeric=str_detect(title,"[:digit:]")) %>%  # got numbers
+    mutate(have_alpha=str_detect(title,"[:alpha:]")) # got letters
+
+# only titles that have alphanumeric
+tmp_features %>% 
+    filter(have_alpha==TRUE)
+# 
+# 
+#     filter( (have_non_alnum==TRUE & have_numeric==TRUE & have_alpha==TRUE)  )
+# 
+#     filter(str_length(title) > 1) %>%  # title more than 1 character
+#     mutate(temp_title = str_replace_all(title,"[^[:alnum:] ]","")) %>%  # add a  alphanumeric only column
+#     
+#     mutate(temp_title = str_trim(temp_title)) %>% # for removing blanks
+#     filter(str_length(temp_title)>1) %>% # again, remove titles with less than 1
+#     count(temp_title,sort = TRUE) %>% 
+#     mutate(have_numeric=str_detect(temp_title,"[:digit:]")) %>% # just a check for know who is replaced 
+#     
+#     filter(str_detect(temp_title,"[^[:numeric:] ]"))
+
+
+```
+
+unifiyng title + subtitle on one column to perform text analysis as " simple version of article"
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+medium_processed <- medium_raw %>% select(-x1)%>% 
+    mutate(date=lubridate::ymd(paste(year,month,day))) %>% 
+    filter(str_detect(title,"[:alpha:]")) %>% 
+    mutate(title_subtitle=paste0(title," ",subtitle))
+    
+# glimpse(medium_changed)
+```
+
+# Gather tags 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# medium_processed_textmining <- 
+# glimpse(medium_changed)
+# colnames(medium_processed_tags)[str_detect(colnames(medium_processed_tags) ,"tag") ] %>% 
+#     paste0(collapse=", ")
+# group by tag
+
+medium_processed_tags <- medium_processed %>% 
+    select(title,subtitle,title_subtitle,claps,date,url,starts_with("tag")) %>%  # we'll use URL as id
+    gather(key=tags,
+           value=tag_value,
+           -title,-subtitle,-title_subtitle,-date,-url,-claps ) %>% # lets get the tags by article
+    filter(tag_value==1) %>%  # the ones with 0 value means " not this tag"
+    select(-tag_value) %>% # remove tag value as now its only 1
+    group_by(title,subtitle,title_subtitle,date,url,claps) %>% 
+    summarise(tags=paste0(tags,collapse=";"),num_tags=n()) %>% 
+    tibble::rowid_to_column("id") 
+```
+
+# Lets make a wordcloud
+
+
+for text mining english , easy way : tidytext package
+
+book:
+https://www.tidytextmining.com/
+
+package & vignette:
+https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html
+
+course at datacamp:
+https://www.datacamp.com/courses/sentiment-analysis-in-r-the-tidy-way
+
+
+for wordcloud:
+https://cran.r-project.org/web/packages/wordcloud2/vignettes/wordcloud.html
+
+
+after running a couple of times: 
+- removed stopwords.
+- filtered some words that i think that do not contribute: "na","de","1","2","3","4","5","2017","2018","la"
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# cor(medium_processed_tags$num_tags,medium_processed_tags$claps)
+ medium_processed_tags_tidy <- medium_processed_tags %>%  ungroup() %>% 
+     select(id,url,tags,title_subtitle) %>% 
+     unnest_tokens(word, title_subtitle) %>%
+  ungroup() %>% anti_join(stop_words)
+
+# manual extracted words
+medium_processed_tags_tidy_2 <- medium_processed_tags_tidy %>% 
+    filter(!(word %in% c("na","de","1","2","3","4","5","2017","2018","la")))
+
+ words_freq_wordcloud <- medium_processed_tags_tidy_2 %>% 
+  # Use count to find out how many times each word is used
+  count(word, sort = TRUE) %>% rename(freq=n)
+
+ # medium_processed_tags_tidy_sentiment <- medium_processed_tags_tidy %>%
+ #  # Implement sentiment analysis with the "bing" lexicon
+ #  inner_join(get_sentiments("bing") )
+ # 
+ # medium_processed_tags_tidy_sentiment %>%
+ #  # Find how many positive/negative words each play has
+ #  count(id,sentiment)
+
+ wordcloud2(words_freq_wordcloud, 
+            minRotation = -pi/6, 
+            maxRotation = pi/6, 
+            minSize = 10,
+            rotateRatio = 0.2)
+ 
+ # head(demoFreq)
+ 
+```
+
+How is article base composed by tags ?
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+
+tags_dummy <- medium_processed %>% select(url, starts_with("tag"))
+tidy_with_tags_dummy <- medium_processed_tags_tidy_2 %>% left_join(tags_dummy, by = c("url" = "url"))
+
+amount_tags <- tags_dummy %>% 
+    select(-url)%>% 
+    summarise_all(funs(sum)) %>% 
+    t() %>% as_tibble() %>% rename(n=V1) %>% 
+    mutate(tags=tags_dummy %>% 
+               select(-url) %>% colnames()) %>% 
+    mutate(total=nrow(tags_dummy)) %>% 
+    mutate(tag_ratio=n/total) %>% 
+    mutate(tags=fct_reorder(tags,tag_ratio)) 
+
+amount_tags %>% 
+    ggplot(aes(tags,n,fill=tags))+
+    geom_col() +
+    labs(title="How is article base composed by tags ?",
+         subtitle="remember can be multi tagged",
+         x="",
+         y="# of tags") +
+    coord_flip()+
+    theme_light()+
+    theme(legend.position = "none")
+
+```
+# now worcloud for each tag
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+    
+
+tags_ai <- tidy_with_tags_dummy %>% filter(tag_ai==1) %>% 
+    count(word, sort = TRUE) %>% rename(freq=n) %>% 
+     wordcloud2(minRotation = -pi/6, maxRotation = pi/6, minSize = 10,rotateRatio = 0.2)
+tags_artificial_intelligence <- tidy_with_tags_dummy %>% filter(tag_artificial_intelligence==1) %>% 
+    count(word, sort = TRUE) %>% rename(freq=n) %>% 
+     wordcloud2(minRotation = -pi/6, maxRotation = pi/6, minSize = 10,rotateRatio = 0.2)
+tags_ml <- tidy_with_tags_dummy %>% filter(tag_machine_learning==1) %>% 
+    count(word, sort = TRUE) %>% rename(freq=n) %>% 
+     wordcloud2(minRotation = -pi/6, maxRotation = pi/6, minSize = 10,rotateRatio = 0.2)
+tags_ds <- tidy_with_tags_dummy %>% filter(tag_data_science==1)%>% 
+    count(word, sort = TRUE) %>% rename(freq=n) %>% 
+     wordcloud2(minRotation = -pi/6, maxRotation = pi/6, minSize = 10,rotateRatio = 0.2)
+tags_big_data <- tidy_with_tags_dummy %>% filter(tag_big_data==1)%>% 
+    count(word, sort = TRUE) %>% rename(freq=n) %>% 
+     wordcloud2(minRotation = -pi/6, maxRotation = pi/6, minSize = 10,rotateRatio = 0.2)
+tags_data <- tidy_with_tags_dummy %>% filter(tag_data==1)%>% 
+    count(word, sort = TRUE) %>% rename(freq=n) %>% 
+     wordcloud2(minRotation = -pi/6, maxRotation = pi/6, minSize = 10,rotateRatio = 0.2)
+tags_deep_learn <- tidy_with_tags_dummy %>% filter(tag_deep_learning==1)%>% 
+    count(word, sort = TRUE) %>% rename(freq=n) %>% 
+     wordcloud2(minRotation = -pi/6, maxRotation = pi/6, minSize = 10,rotateRatio = 0.2)
+tags_data_vis <- tidy_with_tags_dummy %>% filter(tag_data_visualization==1)%>% 
+    count(word, sort = TRUE) %>% rename(freq=n) %>% 
+     wordcloud2(minRotation = -pi/6, maxRotation = pi/6, minSize = 10,rotateRatio = 0.2)
+ 
+ # head(demoFreq)
+
+```
