@@ -1,0 +1,401 @@
+---
+title: "week 2018-12-11 challenge"
+author: "_jas"
+date: 20181211
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2018-12-11
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+nyc restaurants.
+
+
+## import data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(janitor)#install.packages('janitor')
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(DataExplorer)
+library(ggrepel)#install.packages('ggrepel')
+# library(rpart)
+# library(rpart.plot)
+# library(cluster)
+# library(leaflet)
+```
+
+raw data:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# ~ 100 MB 
+# full data at: 
+nyc_resto_raw <- readr::read_csv(here::here("data","2018-12-11","nyc_restaurants.csv"))
+glimpse(nyc_resto_raw)
+
+
+nyc_resto_full <- read_csv("https://data.cityofnewyork.us/api/views/43nn-pn8j/rows.csv")
+nyc_resto_full <- nyc_resto_full %>% janitor::clean_names()
+glimpse(nyc_resto_full)
+# Cleaning names with janitor, sampling 300,000 records, and dropping some variables
+# nyc_resto_full <- df %>% 
+#         janitor::clean_names()
+```
+
+# see missing compositions
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nyc_resto_processed <- nyc_resto_full %>% 
+    mutate(boro=ifelse(boro=="Missing",NA,boro)) %>%  # have to use ifelse , not if_else , nor str_replace
+    mutate(inspection_date_parsed=mdy(inspection_date)) %>% 
+    mutate(inspection_year=year(inspection_date_parsed),
+           inspection_month=month(inspection_date_parsed)) %>% 
+    filter(inspection_year>2000)
+    
+DataExplorer::plot_missing(nyc_resto_processed)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nyc_resto_processed %>% 
+    count(grade,sort=TRUE)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nyc_resto_processed %>% 
+    count(boro,sort=TRUE)
+```
+
+# amount of inspections by year
+
+* warning 1: for each day inspection, you can have multiple violation codes.
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nyc_resto_processed %>% filter(camis==50082219, inspection_date_parsed==date("2018-11-05"))
+```
+
+* warning 2: for each day inspaction you can have multiple violation code of same category
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nyc_resto_processed %>% 		
+    filter(camis==50047379, 
+           inspection_date_parsed==date("2018-01-27"),
+           violation_code=="15F") 
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# nyc_resto_processed %>% 
+#     count(camis,inspection_date,violation_code,sort=TRUE)
+# nyc_resto_processed %>% filter(camis==50082219, inspection_date==date("2018-11-05"))
+
+```
+
+# till now: 
+
+1st we need to understand data structure
+as have inspections per day, 
+but in each day you can have multiple inspections , 
+that was related because to violations. 
+if a day got multiple violations , you got multiple registries.
+
+* also we saw that there are many dates out of range; so lets get all the dates before 2000 just to see
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nyc_resto_processed %>% filter(inspection_date_parsed<"2000-01-01") %>% count(inspection_year)
+```
+
+as seen year is 1900 , so that inspections will be ignored.
+
+ill remove that from the dataset.
+
+
+lets group by: 
+how many violations got each reastaurant per day.
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+inspections_by_date_by_resto <- nyc_resto_processed %>% 
+    mutate(inspection_year=factor(inspection_year)) %>% 
+    mutate(score_imputed=if_else(is.na(score),as.integer(0),score)) %>% 
+    group_by(inspection_month, inspection_year,  inspection_date_parsed,
+           camis,dba,boro,cuisine_description) %>% 
+    summarise(violations_per_day=n(),
+              violation_codes=paste0(violation_code,collapse = ";"),
+              violation_descriptions=paste0(violation_description,collapse = ";"),
+              critical_flags=paste0(critical_flag,collapse = ";"),
+              total_inspection_score=sum(score_imputed),
+              inspection_types=paste0(inspection_type,collapse = ";"),
+              total_critical=sum(critical_flag=="Critical"),
+              total_not_critical=sum(critical_flag=="Not Critical"),
+              total_not_applicable=sum(critical_flag=="Not Applicable"))
+
+inspections_by_date_by_resto %>% 
+    ggplot(aes(x=inspection_year,
+               y=violations_per_day,
+               fill=inspection_year))+ 
+    geom_boxplot()+
+    theme_light()+
+    theme(legend.position = "none")+
+    labs(title="Violations per day per restaurant, yearly",
+         x="Year",
+         y="#Violations per day per restaurant")+
+    coord_flip()
+```
+
+as seen amount of inspections grown a lot in time; might be more sanity campaings, or that data wasnt registered on the database.
+
+
+# Wich restaurants have more inspections over time
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# Restaurants / inspections
+amount_inspections_by_resto <- inspections_by_date_by_resto %>% 
+    arrange(inspection_date_parsed) %>% 
+    ungroup() %>% 
+    group_by(camis,dba,boro,cuisine_description) %>% 
+    summarise(inspections_path=paste0(inspection_date_parsed,collapse="->"),
+              amount_inspections=n()) %>% 
+    nest(-camis,-dba,-boro,-cuisine_description)
+
+nested_amount_inspections_by_resto <- inspections_by_date_by_resto %>% 
+    arrange(inspection_date_parsed) %>% 
+    ungroup() %>% 
+    nest(-camis,-dba,-boro,-cuisine_description)
+# 
+# nested_amount_inspections_by_resto %>% 
+#     glimpse()
+
+nested2 <- nested_amount_inspections_by_resto %>%
+    mutate(amount_inspections=unlist(map(data,nrow))) %>% 
+    mutate(have_critical=unlist(map(data,function(x){any(x$total_critical>1)}))) %>% 
+    mutate(total_critical=unlist(map(data,function(x){sum(x$total_critical)}))) %>% 
+    mutate(total_not_critical=unlist(map(data,function(x){sum(x$total_not_critical)}))) %>% 
+    mutate(total_not_applicable=unlist(map(data,function(x){sum(x$total_not_applicable)}))) %>% 
+    mutate(inspections_path=unlist(map(data,function(x){paste0(x$inspection_date_parsed,collapse="->")})))
+
+unnested2 <- nested2 %>% unnest()
+
+plot_data <- nested2 %>% 
+    arrange(desc(amount_inspections)) %>% 
+    head(20) %>% 
+    mutate(dba=fct_reorder(dba,amount_inspections)) %>% 
+    unnest() %>% 
+    filter(inspection_year=="2018")
+
+sk <- skimr::skim(plot_data$violations_per_day)
+violation_level_threshold_min <- sk %>% filter(stat%in%c("p50")) %>% pull(value) %>% mean()
+violation_level_threshold <- sk %>% filter(stat%in%c("p75","p100")) %>% pull(value) %>% mean()
+
+plot_data <- plot_data %>% 
+    mutate(violation_amount_level=ifelse(violations_per_day > violation_level_threshold, "red", 
+                              ifelse(violations_per_day<=violation_level_threshold_min,"green","blue"))) %>% 
+    mutate(total_secerity=total_critical+total_not_critical+total_not_applicable) %>% 
+    mutate(ratio_critical=total_critical/total_secerity)
+
+# plot_data %>% filter(ratio_critical >= 0.5)
+
+
+# plot_data %>% filter(violation_amount_level=="green")
+plot_nested <- plot_data %>% 
+    ggplot(aes(x=inspection_date_parsed,
+               y=dba,
+               label=paste0("#violations: ", violations_per_day),
+               color=violation_amount_level,
+               size=violations_per_day))+
+    # geom_point(alpha=0.2,
+    #            size=plot_data$violations_per_day+1,
+    #            color=ifelse(plot_data$ratio_critical>0.7,"orange","grey"))+
+    geom_point(alpha=0.5)+
+    # geom_text_repel(data=subset(plot_data,ratio_critical>0.7) ,
+    #                 hjust=50,
+    #                 # x_nudge=50,
+    #                 direction = "x",
+    #                 size=3,
+    #                 segment.size = 0.4,
+    #                 segment.color="blue",
+    #                 color="blue"
+    #                 )+
+    geom_text_repel(data=subset(plot_data,violations_per_day > violation_level_threshold) ,
+
+                    hjust=25,
+                    # x_nudge=50,
+                    direction = "x",
+                    size=3,
+                    segment.size = 0.4,
+                    segment.color="blue",
+                    color="blue"
+                    )+
+    scale_fill_gradient(low="blue", high="red",na.value = "black")+
+    labs(title="Inspections by restaurant in 2018 ,Top #20",
+         subtitle=paste0("highlight threshold: ",violation_level_threshold_min,"<= violations < ",violation_level_threshold),
+         x="",
+         y="")+
+    scale_x_date(date_breaks = "1 month", date_labels = "%Y-%m-%d") +
+    theme_light()+
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+plot_nested
+# https://cran.r-project.org/web/packages/ggrepel/vignettes/ggrepel.html
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# nested_amount_inspections_by_resto$data[[1]]
+# nested_amount_inspections_by_resto$amount_inspections[[1]]
+
+
+# str(nested_amount_inspections_by_resto$data)
+# 
+# 
+# glimpse(amount_inspections_by_resto)
+# 
+# glimpse(amount_inspections_by_resto %>% separate(inspections_path,sep="->"))
+# 
+# amount_inspections_by_resto %>% 
+#     arrange(desc(amount_inspections)) %>% 
+#     # head(50) %>% 
+#     # ungroup() %>% 
+#     # mutate(dba=fct_reorder(dba,amount_inspections)) %>% 
+#     ggplot(aes(y=amount_inspections)) +
+#     geom_boxplot()+
+#     labs(title="# inspections by restaurant",
+#          y="# inspections by restaurant",
+#          x="")+
+#     theme_light()+
+#     theme(legend.position = "none")+
+#     coord_flip()
+# 
+# amount_inspections_by_resto %>% select(amount_inspections)
+#     skimr::skim(amount_inspections_by_resto$amount_inspections)
+#     
+#     amount_inspections_by_resto %>% 
+#     ggplot(aes(x=dba,y=am))
+
+    
+    
+    
+amount_inspections_by_resto %>% 
+    arrange(desc(amount_inspections)) %>% 
+    head(50) %>% 
+    ungroup() %>% 
+    mutate(dba=fct_reorder(dba,amount_inspections)) %>% 
+    ggplot(aes(x=dba,y=amount_inspections,fill=dba)) +
+    geom_col()+
+    labs(title="# inspections by restaurant",
+         y="# inspections by restaurant",
+         x="")+
+    theme_light()+
+    theme(legend.position = "none")+
+    coord_flip()
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# nyc_resto_processed %>% filter(camis==50082219, inspection_date==date("2018-11-05"))
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# why there are so much NA in violation_description ?
+
+# guess = explore data
+# well im just being vague ... not having an objective atm ... 
+#that will lead to N time , need to be more effective
+# think = make a model
+# its fun but ... not having a clear obejctive ... about all the analysis
+# ill better think a little 1st.
+# missing_violation_code <- nyc_resto_processed %>% 
+#     mutate(missing_violation_code=is.na(violation_code))
+# 
+# rpart
+# 
+# 
+#     filter(camis==50047379, 
+#            inspection_date_parsed==date("2018-01-27"),
+#            violation_code=="15F") 
+
+
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# 
+# %>% 
+#     select(camis,inspection_date,violation_code,violation_description,action) %>% 
+#     count(camis,inspection_date,violation_code,sort=TRUE)
+# 
+# nyc_resto_processed %>% 
+#     count(violation_code,violation_description) %>% 
+#     filter(is.na(violation_description))
+# 
+# 
+# nyc_resto_processed %>% filter(is.na(violation_code))
+# 
+# nyc_resto_processed %>% 
+#     filter(is.na(violation_code)) %>% 
+#     select(camis,inspection_date,inspection_date_parsed) %>% 
+#     filter()
+# 
+#     min(nyc_resto_processed$inspection_date)
+# nyc_resto_raw$inspection_date
+```
+
+# communicate
+
+too much random time assigned to this week . 
+cannot focus on one stuff in a session.
+for next time, just remember: 
+- explore the data structure of the columns
+- think some questions to ask , may be thinking who can be interested can guide.
+- focus on answer some questions
+
+learnt:
+
+ggrepel 
+more ggplot
+and realizing that having inspection "paths" might not be a good point of view for just a static visualization; may be experiment with something interactive in shiny.
+
