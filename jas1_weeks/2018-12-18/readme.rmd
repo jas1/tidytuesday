@@ -1,0 +1,382 @@
+---
+title: "week 2018-12-18 challenge"
+author: "_jas"
+date: 20181218
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2018-12-18
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+Captive Cetacean Dataset
+
+## import data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(janitor)#install.packages('janitor')
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(DataExplorer)
+library(ggrepel)#install.packages('ggrepel')
+library(rebus)
+library(igraph)
+library(ggraph)
+library(tidygraph)#install.packages('tidygraph')
+library(gganimate)
+
+
+# library(rpart)
+# library(rpart.plot)
+# library(cluster)
+# library(leaflet)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+file_name <- here::here("data","2018-12-18","allCetaceanData.csv")
+cetacean_raw <- readr::read_csv(file_name)
+glimpse(cetacean_raw)
+```
+
+
+# lets check missing data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+DataExplorer::plot_missing(cetacean_raw)
+```
+X1, its a rowid 
+transfer date like 99% of cases dont have transfer date, 
+but have other interesting columns as transfers & transfers
+
+a question might be " its common to transfer cetaceans ?"
+
+## is it common to transfer cetaceans ?
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+transfers <- cetacean_raw %>% select(id,transfer,transfers,transferDate)
+
+
+# US centric & not detailed, at least no NA's
+# transfers %>% count(transfer,sort=TRUE)
+
+# half of data ~= NA : 1392
+# transfers %>% count(transfers,sort=TRUE)
+
+
+# transfers %>% count(transfers,sort=TRUE) %>% 
+#     mutate(str_longest=str_length(transfers)) %>% 
+#     arrange(desc(str_longest)) %>% 
+#     pull(transfers)
+
+count_transfers <- transfers %>% 
+    mutate(amount_transfers=str_count(transfers," to ")) %>% 
+    arrange(desc(amount_transfers))
+
+count_transfers %>% 
+    count(amount_transfers) %>% 
+    mutate(amount_transfers=if_else(is.na(amount_transfers),as.integer(0),amount_transfers)) %>% 
+    mutate(amount_transfers=factor(amount_transfers)) %>% 
+    mutate(amount_transfers=fct_reorder(amount_transfers,n)) %>% 
+    ggplot(aes(x=amount_transfers,y=n,fill=amount_transfers)) + 
+    geom_col()+
+    coord_flip()+
+    labs(title="Amount of transfers by Cetacean",
+         x="",
+         y="# cetaceans with N transfers")+
+    theme_light()+
+    theme(legend.position = "none")
+```
+
+
+## Cetacean destination graph
+
+as its a path, its a directed graph
+but to get that i need all the " from / to "
+splited by " to " in the transfer date
+by cetacean
+
+
+### prepare graph data:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# split transfers destinations
+
+transfers_rows <- cetacean_raw %>% 
+    rename(row_id=X1) %>% 
+    select(row_id,transfers)
+
+transfers_from_to <- transfers_rows %>% 
+    separate_rows(transfers, sep = " to ", convert = FALSE) %>% # separate destinations of registry
+    separate(transfers,c("destiny","date_aprox"),sep=rebus::OPEN_PAREN) %>%
+    mutate(destiny=str_trim(destiny)) %>% 
+    mutate(date_aprox=str_replace(date_aprox,rebus::CLOSE_PAREN,"")) %>% 
+    mutate(from=if_else(row_id==lag(row_id),lag(destiny),"")) %>% 
+    select(row_id,from,destiny) %>% 
+    filter(!is.na(destiny),from!="") %>% 
+    rename(to=destiny)
+
+# transfers_from_to %>% filter(from==" ")
+transfers_from_to_graph_df_weighted <- transfers_from_to %>%  count(from,to) %>%  rename(weight=n)
+
+
+# transfers_from_to %>% filter(row_id==4)
+# transfers_rows %>% filter(row_id==4)
+# transfers_rows %>% filter(row_id==3) %>% pull(transfers) %>% str_count(" to ") 
+# transfers_rows %>% filter(row_id==5) %>% pull(transfers) %>% str_count(" to ") 
+# transfers_from_to %>% filter(row_id==5)
+```
+
+
+### make the graph
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+transfers_graph <- igraph::graph_from_data_frame(transfers_from_to_graph_df_weighted) %>% as_tbl_graph() 
+
+igraph::V(transfers_graph)$degree <- igraph::degree(transfers_graph)
+igraph::V(transfers_graph)$between <- igraph::betweenness(transfers_graph)
+
+# igraph::average.path.length(transfers_graph)
+# igraph::transitivity(transfers_graph)
+# igraph::diameter(transfers_graph)
+filtered_graph <- transfers_graph %>% 
+    mutate(community = group_walktrap()) %>% 
+    filter(community %in% 1:3)
+
+# is_directed(transfers_graph)
+# filtered_graph <- transfers_graph %>% 
+    
+
+# V(transfers_graph)
+filtered_graph %>% 
+    ggraph(layout = 'mds') +
+    geom_node_point(aes(size = degree,col = as.factor(community))) +
+    ggraph::geom_edge_link(aes(edge_alpha = weight))+
+    theme_void()+ 
+    theme(legend.position = 'none') +
+    labs(title="Top 3 Cetacean Transfer Communities",
+         subtitle = "Node size: degree; Link alpha: weight; Communities: walktrap; Layout: mds")
+
+filtered_graph %>%
+    ggraph(layout = 'lgl') +
+    ggraph::geom_node_point(aes(size = degree,col = as.factor(community))) +
+    ggraph::geom_edge_link(aes(edge_alpha = weight))+
+    theme_void()+
+        theme(legend.position = 'none') +
+    labs(title="Top 3 Cetacean Transfer Communities: walktrap",
+         subtitle = "Node size: degree; Link alpha: weight")
+    # ggraph::geom_node_label(filter=V(transfers_graph)$degree>40,aes(label=name)) 
+```
+
+
+# animation, comunities, layouts
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+
+
+# https://perrystephenson.me/2018/09/29/the-r-twitter-network/
+
+layout_list <- list(
+  list(layout = 'star'),
+  list(layout = 'circle'),
+  list(layout = 'gem'),
+  list(layout = 'graphopt'),
+  list(layout = 'grid'),
+  list(layout = 'mds'),
+  list(layout = 'randomly'),
+  list(layout = 'fr'),
+  list(layout = 'kk'),
+  list(layout = 'nicely'),
+  list(layout = 'lgl'),
+  list(layout = 'drl'))
+
+
+
+
+layouts <- filtered_graph %>% 
+  invoke_map('create_layout', layout_list, graph = .) %>% 
+  set_names(unlist(layout_list)) %>% 
+  bind_rows(.id = 'layout')
+
+dummy_layout <- create_layout(filtered_graph, 'nicely')
+
+attr(layouts, 'graph') <- attr(dummy_layout, 'graph')
+attr(layouts, 'circular') <- FALSE
+
+
+animated_graph <- ggraph(layouts) +
+  geom_node_point(aes(size = degree,col = as.factor(community))) +
+    # geom_edge_link(aes(edge_alpha = weight))+ # not working properly
+  theme_void() +
+  theme(legend.position = 'none') +
+  labs(title = 'Cetacean Transfer Graph; Node Size: degree ; Color: top 3 communities',
+       subtitle = 'Using {closest_state} layout') +
+  transition_states(layout, 1, 2) +
+  ease_aes('linear') +
+  view_follow()
+
+# gganimate::anim_save(filename = "cetacean_2018.gif")
+
+# animate(animated_graph, fps = 10, nframes = 100)
+
+
+```
+
+
+# Some graph statistics
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# [V(transfers_graph)$degree > 25]
+# [V(transfers_graph)$degree > 25]
+plot_labels_df <- data.frame(name=V(transfers_graph)$name,
+           degree=as.integer(V(transfers_graph)$degree)) %>%  as_tibble() %>% 
+    group_by(degree) %>% 
+    summarize(label=paste0(name,collapse="; "))
+
+
+# threshold_degree <- 25
+
+# plot_labels_df %>% filter(degree>threshold_degree) 
+
+
+
+# transfers_graph
+
+degree_distribution_plot_data <- transfers_graph %>% 
+    degree_distribution() %>% 
+            as_tibble() %>% 
+            rename(degree_distribution=value) %>% 
+            tibble::rownames_to_column("degree") %>% 
+            mutate(degree=as.integer(degree)) %>% 
+            arrange(degree) %>% 
+    left_join(plot_labels_df,by=("degree"="degree"))
+
+glimpse(degree_distribution_plot_data)
+glimpse(plot_labels_df)
+
+
+degree_distribution_plot_data %>% 
+    ggplot(aes(x=degree,y=degree_distribution,label=label)) + 
+    geom_col() +
+    labs(title="Transfers Graph: Degree distribution",
+         x="Degree",
+         y="P degree")+
+    theme_light()+
+    ggrepel::geom_text_repel(data=subset(degree_distribution_plot_data,
+                                        degree > 25 & degree < 40 ),
+                            nudge_y      = 0.05,
+                            direction    = "x",
+                            angle        = 90,
+                            vjust        = 0,
+                            segment.size = 0.2,
+                             segment.color="blue",
+                             color="blue") +
+    ggrepel::geom_text_repel(data=subset(degree_distribution_plot_data,
+                                        degree > 40 ),
+                            nudge_y      = 0.05,
+                            direction    = "x",
+                            angle        = 90,
+                            vjust        = 0,
+                            segment.size = 0.2,
+                             segment.color="red",
+                             color="red")
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+
+#     
+# grrr i can still be doing this for hours and add new stuff all the time ...
+# i rather close on those.
+# btw <- transfers_graph %>% betweenness()
+# 
+# 
+# btw_histo_plot_data <- data.frame(names=names(btw),value=btw) %>% 
+#             as_tibble() %>% 
+#             rename(betweenness=value)
+# 
+# 
+# btw_histo_plot_data %>% 
+#             ggplot(aes(betweenness)) +
+#             geom_histogram() +
+#             labs(title="Betweenness Histogram ",
+#                  x= "Betweenness",
+#                  y= "# nodes")+
+#             theme_light()+
+#         ggrepel::geom_text_repel(data=subset(btw_histo_plot_data,
+#                                         betweenness > 4800 & betweenness < 7500 ),
+#                             nudge_y      = 0.05,
+#                             direction    = "x",
+#                             angle        = 90,
+#                             vjust        = 0,
+#                             segment.size = 0.2,
+#                              segment.color="blue",
+#                              color="blue")
+
+    
+```
+
+
+# lets check missing data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# DataExplorer::plot_missing(cetacean_raw)
+```
+
+
+# are 1 registry per cetacean?
+
+search with more than 1 of same id:
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# more_than_1_registry <- cetacean_raw %>% count(id,sort=TRUE) %>%  filter(n>1) 
+# 
+# more_than_1_registry 
+# 
+# total with more than 1 registry: `r more_than_1_registry %>% count()`
+# total registries: `r nrow(cetacean_raw)`
+# proportion: `r more_than_1_registry / nrow(cetacean_raw)`
+```
+
+
+
+
+# communicate
+
+- this week was another really late tuesday :p 
+- was fun that got the idea how to work with graphs here . 
+- will be awsome to write some special case explorer.
+- database was not clean, and i did not expend really much time on that
+- for duplications i rather prefer open refine & text clustering; as i dont know & was a short try & also that task consumes a lot of time, it was not done.
+- focused on transforming the transfers to from/to for each rowid , and then, summarized,to get weights on edges.
+
+
+
+
