@@ -1,0 +1,514 @@
+---
+title: "week 2018-12-25 no dataset / pick a dataset"
+author: "_jas"
+date: 20181225
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2018-12-25
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+No dataset / free week / use previous / your own
+
+data choosen: 
+
+argentina wild fires: 
+All data: http://datos.ambiente.gob.ar/dataset/incendios-forestales
+
+
+i picked 2:
+
+* causes & quantity per province ('states') : "Causas y cantidad de incendios por provincia" 
+* affected area per province ('states') and vegetation type : "Superficie afectada por incendios por provincia y tipo de vegetación"
+
+in case data portal wont work, i upload to my github.
+
+### objectives:
+
+unify the data on a single data set. 
+do some map stuff, may be a map animation.
+
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(janitor)#install.packages('janitor')
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+# library(DataExplorer)
+# library(ggrepel)#install.packages('ggrepel')
+# library(rebus)
+# library(igraph)
+# library(ggraph)
+# library(tidygraph)#install.packages('tidygraph')
+library(gganimate)
+
+library(maptools)
+library(rgdal)
+library(raster)
+library(rgeos)
+library(ggplot2)
+library(ggalt) #; install.packages("ggalt")
+library(ggthemes)#; install.packages("ggthemes")
+library(viridis)
+library(magrittr)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+file_name_1 <- here::here("jas1_weeks","2018-12-25","incendios-cantidad-causas-provincia.csv")
+causes_raw <- readr::read_delim(file_name_1,delim = ";")
+glimpse(causes_raw)
+
+file_name_2 <- here::here("jas1_weeks","2018-12-25","superficie-incendiada-provincias-tipo-de-vegetacion.csv")
+area_raw <- readr::read_delim(file_name_2,delim = ";")
+glimpse(area_raw)
+
+
+causes_processed <- causes_raw %>% 
+    rename_all(gsub, pattern = 'incendio_', replacement = '') %>% 
+    rename_all(gsub, pattern = '_numero', replacement = '_causa') 
+
+area_processed <- area_raw %>% rename_all(gsub, pattern = 'superficie_afectada_por_incendios_', replacement = '')%>% 
+    rename_all(gsub, pattern = '_hectareas', replacement = '_area') 
+
+skimr::skim(causes_processed)
+skimr::skim(area_processed)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+causes_processed %>% count(anio, provincia)
+area_processed %>% count(anio, provincia)
+
+fuegos_processed <- causes_processed %>% 
+    left_join(area_processed, by=c("anio","provincia"))
+
+# skimr::skim(fuegos_processed)
+# 
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+    # area_processed %>% 
+    # gather(key,value,-anio,-provincia) %>% 
+    # filter(key!="total_area") %>% 
+    # rename_all(gsub, pattern = '_area', replacement = '') %>% 
+    # # filter(anio==1993) %>% 
+    # mutate(provincia=fct_reorder(provincia,desc(provincia))) %>% 
+    # ggplot(aes(x=provincia, y=value,fill=key)) +
+    #     geom_col()+
+    #     scale_y_continuous(labels = scales::number) +
+    #     labs(title="Affected Area by province",
+    #          x="",
+    #          y="#hectareas")+
+    #     coord_flip()+
+    #     theme_light()
+    # 
+    # area_processed %>% 
+    # gather(key,value,-anio,-provincia) %>% 
+    # filter(key!="total_area") %>% 
+    # rename_all(gsub, pattern = '_area', replacement = '') %>% 
+    # # filter(anio==1993) %>% 
+    # mutate(provincia=fct_reorder(provincia,desc(provincia))) %>% 
+    # mutate(anio=factor(anio)) %>% 
+    # 
+    # ggplot(aes(x=provincia, y=value,fill=anio)) +
+    #     geom_col()+
+    #     scale_y_continuous(labels = scales::number) +
+    #     labs(title="Affected Area by province",
+    #          x="",
+    #          y="#hectareas")+
+    #     coord_flip()+
+    #     theme_light()
+
+```
+
+###  Total  wildfire causes over the years
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+    causes_processed %>% 
+    dplyr::select(-anio) %>% 
+    group_by(provincia ) %>% 
+    summarize_all(sum) %>% 
+    rename_all(gsub, pattern = '_causa', replacement = '') %>% 
+    mutate(provincia=fct_reorder(provincia,total)) %>% 
+    gather(key,value,-provincia) %>% 
+    filter(key!="total") %>% 
+    ggplot(aes(x=provincia, y=value,fill=key)) +
+        geom_col()+
+        scale_y_continuous(labels = scales::number) +
+        labs(title="Total Wildfires by province 1993-2016",
+             x="",
+             y="#wildfires",
+             fill="cause",
+             caption = "http://datos.ambiente.gob.ar/dataset/incendios-forestales")+
+        coord_flip()+
+        theme_light()
+```
+
+
+## total area burnt by province & vegetation type
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+    area_processed %>% 
+    dplyr::select(-anio) %>% 
+    group_by(provincia) %>% 
+    summarize_all(sum) %>% 
+    rename_all(gsub, pattern = '_area', replacement = '') %>% 
+    mutate(provincia=fct_reorder(provincia,total)) %>% 
+    gather(key,value,-provincia) %>% 
+    filter(key!="total") %>% 
+    ggplot(aes(x=provincia, y=value,fill=key)) +
+        geom_col()+
+        scale_y_continuous(labels = scales::number) +
+        labs(title="Total area burnt by province 1993-2016",
+             subtitle="remember it can be burnt again the same spot",
+             x="",
+             y="# hectares",
+             fill="vegetation type",
+             caption = "http://datos.ambiente.gob.ar/dataset/incendios-forestales")+
+        coord_flip()+
+        theme_light()
+
+
+```
+
+
+```{r}
+#https://github.com/thomasp85/gganimate
+total_wildfires_arg_gif <- causes_processed %>% 
+    mutate(provincia=fct_reorder(provincia,total_causa)) %>%
+    rename_all(gsub, pattern = '_causa', replacement = '') %>% 
+    gather(key,value,-provincia,-anio) %>% 
+    filter(key!="total") %>% 
+ggplot(aes(x=provincia,
+           y=value,
+           fill=key)) +
+    geom_col()+
+    coord_flip()+
+    theme_light()+
+    scale_y_continuous(labels = scales::number) +
+  labs(title = 'Argentina: Total Wildfires by province; 1993-2016',
+       subtitle='Year: {frame_time}', 
+       x = '', 
+       y = '# wildfire',
+       fill="cause",
+       caption = "http://datos.ambiente.gob.ar/dataset/incendios-forestales") +
+  transition_time(anio) +
+  ease_aes('linear')
+
+```
+
+
+```{r}
+#https://github.com/thomasp85/gganimate
+total_wildfires_area_arg_gif <- area_processed %>% 
+    mutate(provincia=fct_reorder(provincia,total_area)) %>%
+    rename_all(gsub, pattern = '_area', replacement = '') %>% 
+    gather(key,value,-provincia,-anio) %>% 
+    filter(key!="total") %>% 
+ggplot(aes(x=provincia,
+           y=value,
+           fill=key)) +
+    geom_col()+
+    scale_y_continuous(labels = scales::number) +
+    coord_flip()+
+    theme_light()+
+  labs(title = 'Argentina: Total Wildfires burnt area by province; 1993-2016',
+       subtitle='Year: {frame_time} ; remember it can be burnt again the same spot', 
+       x = '', 
+       y = '# hectares',
+       fill="vegetation type",
+       caption = "http://datos.ambiente.gob.ar/dataset/incendios-forestales") +
+  transition_time(anio) +
+  ease_aes('linear')
+
+```
+
+
+# Area burnt over time
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# # load argentina provinces sf
+# # testing: https://stackoverflow.com/questions/37517731/decreasing-processing-time-for-shp-map-choropleth
+# # as stated in the other answer, this is the same as your shapefile
+# arg_adm <- raster::getData('GADM', country='ARG', level=1)
+# 
+# # make the polygons a bit less verbose
+# gSimplify(arg_adm, 0.01, topologyPreserve=TRUE) %>% 
+#   SpatialPolygonsDataFrame(dat=arg_adm@data) -> arg_adm
+# 
+# # turn them into a data frame
+# arg_map <- fortify(arg_adm, region="NAME_1")
+# 
+# # use a gd projection for this region
+# arg_proj <- "+proj=aeqd +lat_0=-37.869859624840764 +lon_0=-66.533203125"
+# 
+# # reproducibly simulate some data
+# set.seed(1492)
+# # 
+# prov <- c("Buenos Aires", "Córdoba", "Catamarca", "Chaco", "Chubut",
+#                           "Ciudad de Buenos Aires", "Corrientes", "Entre Ríos", "Formosa", 
+#                           "Jujuy", "La Pampa", "La Rioja", "Mendoza", "Misiones", "Neuquén", 
+#                           "Río Negro", "Salta", "San Juan", "San Luis", "Santa Cruz", 
+#                           "Santa Fe", "Santiago del Estero", "Tierra del Fuego", "Tucumán")
+# anios <- c("1990","2000", "2010")
+# 
+# puntos <- data.frame(id=prov,anio=anios,value=sample(100, length(anios)*length(prov)),stringsAsFactors = FALSE)
+
+
+# 
+# 
+# puntos2 <-  area_processed %>% 
+#     # dplyr::select(-anio) %>% 
+#     mutate(anio=as.character(anio)) %>% 
+#     mutate(bins=cut_interval(total_area,5,length = )) %>%  # 0-500;500-1500;1500-5000;5000-20000;+20000  .856 4514 24150
+#     # group_by(anio,provincia) %>% 
+#     # summarize_all(sum) %>% 
+#     rename_all(gsub, pattern = '_area', replacement = '') %>% 
+#     mutate(provincia=fct_reorder(provincia,total)) 
+#     
+#     levels(puntos2$bins)
+# puntos2 %>%  
+#     group_by(bins) %>% 
+#     summarise(mini=min(total),maxi=max(total),n=n()) %>% 
+#     mutate(bins_2=paste0(mini,"-",maxi))
+# 
+# 
+# #856 4514 24150
+# boxplot(puntos2$total)
+#  skimr::skim(puntos2$total)
+#  boxplot(puntos3$total)
+#  skimr::skim(puntos3$total)
+#  
+# glimpse(puntos2)
+# 
+# puntos3 <- causes_processed %>% 
+#     mutate(anio=as.character(anio)) %>% 
+#     # group_by(anio,provincia) %>% 
+#     # summarize_all(sum) %>% 
+#     rename_all(gsub, pattern = '_causa', replacement = '') %>% 
+#     mutate(provincia=fct_reorder(provincia,total)) %>% 
+#     # mutate(bins=cut_interval(total,5)) # 20  88 275 10321 -> 0-100 ; 100-500; 500-1000;1000-5000 ;+5000 +1000
+# 
+# 
+# 
+# hist(puntos3$total)
+# hist(puntos2$total)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# puntos %>% ggplot() +
+    
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# 
+# haceme_mapa_anio <- function(data,arg_map,anio){
+#     
+#     datos_filtrados <- data %>%  filter(anio == anio)
+#         
+#     gg <- ggplot() 
+#     
+#     # necessary in the new world of ggplot2 mapping O_o
+#     gg <- gg + geom_blank(data=arg_map, aes(long, lat))
+#     
+#     # draw the base polygon layer
+#     gg <- gg + geom_map(data=arg_map, map=arg_map, 
+#                         aes(fill="bins", map_id=id,frame = "anio"),
+#                         color="#b2b2b2", size=0.15, fill=NA)
+#     # fill in the polygons
+#     animacion <- gg + geom_map(data=datos_filtrados, map=arg_map,
+#                         aes(fill=bins, map_id=provincia,frame = anio),
+#                         color="#b2b2b2", size=0.15)
+#     
+#     # animacion <- animacion + scale_fill_viridis(name="Scale Title")
+#     animacion <- animacion + coord_proj(arg_proj)
+#     animacion <- animacion + theme_map()
+#     animacion <- animacion + theme(legend.position=c(0.8, 0.1))
+#     animacion 
+# }
+# 
+# anios_disponibles <- data_prov %>% count(anio) %>% pull(anio)
+# listado_mapas <- purrr::map(anios_disponibles, ~ haceme_mapa_anio(data_prov,arg_map,anio=.) )
+# 
+# puntos2 %>% count(bins)
+# 
+#  haceme_mapa_anio(puntos2,arg_map,anio=2001)
+#  haceme_mapa_anio(puntos3,arg_map,anio=2000)
+# 
+#  boxplot(puntos2$total)
+#  skimr::skim(puntos2$total)
+#  
+# length(anios_disponibles)
+# which(anios_disponibles==2001)
+# listado_mapas[[9]]
+# # data_prov %>%  filter(anio == 1993)
+# # data_prov %>%  filter(anio == 2003)
+# # data_prov %>%  filter(anio == 2013)
+# 
+# # haceme_mapa_anio(data_prov,arg_map = arg_map,anio = 2016)
+# 
+# animacion + gganimate::transition_manual(anio,frames = anio)
+# 
+# data_prov <-  area_processed %>% 
+#     rename_all(gsub, pattern = '_area', replacement = '') 
+# 
+# range(data_prov$total)
+# data_prov %>%  filter(total == 2913817)
+# 
+# 
+# 
+# data_prov_2 <- area_processed %>% 
+#     rename_all(gsub, pattern = '_area', replacement = '') %>% 
+#     left_join(arg_map,by=c("provincia"="id")) %>% 
+#     mutate(anio=factor(anio))
+```
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# gif_final <- data_prov_2 %>% 
+#     ggplot()+
+#     geom_sf(aes(fill=total))+
+#     # theme_void()+
+#   theme(axis.title=element_blank(),
+#         axis.text=element_blank(),
+#         axis.ticks = element_blank(),
+#         strip.text.y = element_text(size = 10),
+#         panel.background=element_rect(fill="white"))+
+#     scale_fill_gradient(low="blue", high="red",na.value = "black")+
+#     gganimate::transition_manual(anio,frames = anio)+
+#     labs(title="Total area burnt by province and year {current_frame}",
+#          subtitle = paste0(""),
+#          caption = "http://datos.ambiente.gob.ar/dataset/incendios-forestales",
+#          x="",y="")
+#      #%>% gganimate::save_animation(file = "tdor_yearly_2018.gif",)
+# 
+# # gganimate::anim_save(filename = "tdor_yearly_2018.gif")
+# gif_final
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# %>% 
+#     # mutate(provincia=fct_reorder(provincia,total)) %>% 
+#     gather(key,value,-provincia,-anio) %>% 
+#     filter(key!="total") %>% 
+#     ggplot() +
+#         geom_sf(aes(fill=deaths))+
+#         geom_col()+
+#         scale_y_continuous(labels = scales::number) +
+#         labs(title="Total area burnt by province 1993-2016",
+#              subtitle="remember it can be burnt again the same spot",
+#              x="",
+#              y="# hectareas",
+#              fill="vegetation type")+
+#         coord_flip()+
+#         theme_light()
+
+# data_prov_2 %>% ggplot() +
+#     geom_blank(aes(long, lat)) +
+#     geom_map( map=arg_map, 
+#                     aes(map_id=provincia),
+#                     color="#b2b2b2", size=0.15, fill=NA) +
+#     geom_map(map=arg_map,
+#                     aes(fill=total, map_id=provincia),
+#                     color="#b2b2b2", size=0.15) +
+#     scale_fill_viridis(name="Scale Title") +
+#     coord_proj(arg_proj) +
+#     theme_map() +
+#     theme(legend.position=c(0.8, 0.1))+
+#     gganimate::transition_manual(anio,frames = anio)+
+#     labs(title="Total area burnt by province and year {current_frame}",
+#          subtitle = paste0(""),
+#          caption = "http://datos.ambiente.gob.ar/dataset/incendios-forestales",
+#          x="",y="")
+# #     
+# 
+# shape_file <- here::here("jas1_weeks","2018-12-25","provincias","provincias.shp")
+# load_shape_file <- sf::read_sf(shape_file) %>% 
+#      mutate(NAM=if_else(str_detect(NAM,"Tierra del Fuego"),"Tierra del Fuego",NAM)) 
+#  
+# 
+#  area_processed %>% count(provincia) 
+#   
+# 
+# con_geometry_2 <-load_shape_file %>% left_join(area_processed,by=c("NAM"="provincia")) %>% 
+#     rename_all(gsub, pattern = '_area', replacement = '')
+# 
+# con_geometry <- arg_map %>% 
+#     left_join(area_processed,by=c("id"="provincia")) %>% 
+#     rename_all(gsub, pattern = '_area', replacement = '')
+#     
+# # object.size(con_geometry_2)/1024 /1024
+# glimpse(con_geometry_2)
+# gif_final <- con_geometry_2 %>% 
+#     ggplot()+
+#     geom_sf(aes(fill=total))+
+#     # theme_void()+
+#   theme(axis.title=element_blank(),
+#         axis.text=element_blank(),
+#         axis.ticks = element_blank(),
+#         strip.text.y = element_text(size = 10),
+#         panel.background=element_rect(fill="white"))+
+#     scale_fill_gradient(low="blue", high="red",na.value = "black")+
+#     gganimate::transition_manual(anio,frames = anio)+
+#     labs(title="Total area burnt by province and year {current_frame}",
+#          subtitle = paste0(""),
+#          caption = "http://datos.ambiente.gob.ar/dataset/incendios-forestales",
+#          x="",y="")
+# library(gapminder)#; install.packages("gapminder")
+# ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, colour = country)) +
+#   geom_point(alpha = 0.7, show.legend = FALSE) +
+#   scale_colour_manual(values = country_colors) +
+#   scale_size(range = c(2, 12)) +
+#   scale_x_log10() +
+#   facet_wrap(~continent) +
+#   # Here comes the gganimate specific bits
+#   labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
+#   transition_time(year) +
+#   ease_aes('linear')
+    
+```
+
+# comunicate.
+
+well this time kind of a failure.
+
+leson learnt: need more practice with custom map data
+not the " world " or " usa" data; real map data related to my places.
+
+still get complicated with maps some times.
+
+need to practice more maps.
+
+( refresh map courses & do practice far from the default maps ( world / usa) )
