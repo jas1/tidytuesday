@@ -1,0 +1,247 @@
+---
+title: "week 2019-01-01 rtweet #rstats #tidytuesday"
+author: "_jas"
+date: 20190101
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-01-01
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data is twitter data on #rstats and #tidytuesday  hashtags
+
+
+### objectives:
+
+- get amount per week
+- check for rstats & tidytuesday at same time
+- may be: check for "lagged submits" ( as submissions not made on tuesday of that week)
+- may be: newcomers / constancy / one submit.
+- may be: "world propagation"?
+
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+tidytuesday_tweets_file <- here::here("data","2019","2019-01-01","tidytuesday_tweets.rds")
+tidytuesday_tweets_raw <- readRDS(tidytuesday_tweets_file)
+
+# set lubridate start on tuesday
+options(lubridate.week.start = 1)
+
+dplyr::glimpse(tidytuesday_tweets_raw)
+
+```
+
+# tweets by week, week days / retweets / favorites per week / words per week / users per week
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+group_week <- tidytuesday_tweets_raw %>% 
+    mutate(week_n = lubridate::week(created_at)) %>% 
+    filter(week_n!=51) %>% 
+    group_by(week_n) %>% 
+    summarise(week_n_total = n(),
+              week_min=min(created_at),
+              week_max=max(created_at),
+              sum_retweets_week=sum(retweet_count),
+              sum_favourites_week=sum(favorite_count),
+              acum_words = paste0(text,collapse = "|"),
+              acum_users = paste0(unique(screen_name),collapse=";"),
+              unique_users_count=length(unlist(str_split(acum_users,";"))))
+
+
+gathered_gw <- group_week %>% 
+    gather(key = "key",value = "value", -week_n) %>% 
+    mutate(value=as.numeric(value))
+
+glimpse(gathered_gw)
+
+gathered_gw %>% 
+    filter(key %in% 
+               c("week_n_total","sum_retweets_week","sum_favourites_week","unique_users_count")) %>%
+    # filter(key %in% c("week_n_total","sum_retweets_week","acum_users_count")) %>% 
+    ggplot(aes(week_n,value,colour =key)) +
+    geom_line() +
+    geom_point()+
+    theme_light()+
+    xlim(1,52 ) +
+    labs(title="Tidytuesday hastag metrics by week",
+         x="Week",
+         y="Amount", 
+         subtitle = "week 51 discarded",
+         colour ="metric")
+```
+
+# user importance by weeks participated
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+group_users <- tidytuesday_tweets_raw %>% 
+    mutate(week_n = lubridate::week(created_at)) %>% 
+    mutate(week_day = lubridate::wday(created_at)) %>% 
+    # select(created_at,week_day,week_n)
+    mutate(is_tuesday = week_day==2) %>% # options(lubridate.week.start = 1)
+    group_by(screen_name,user_id) %>% 
+    summarise(count_tweets = n() ,
+              tuesdays=sum(is_tuesday),
+              not_tuesday=sum(!is_tuesday),
+              ratio_tuesdays= tuesdays / count_tweets,
+              weeks_in=paste0(unique(week_n),collapse=";"),
+              weeks_in_splitted=str_split(weeks_in,";"),
+              weeks_count=length(unlist(weeks_in_splitted)),
+              week_min=min(week_n),
+              week_max=max(week_n),
+              week_gap=week_max-week_min, # difference between 1st week and last week
+              tweets_week_gap_ratio=if_else(week_gap
+                                            !=0,
+                                            count_tweets/week_gap,0), # ratio tweests per wek gap
+              tweets_week_participate = count_tweets / weeks_count,# ratio weighted by week count
+              date_min=min(created_at),
+              date_max=max(created_at)) %>% 
+    arrange(desc(weeks_count))
+glimpse(group_users)
+group_users %>% filter(screen_name=='jspairani')
+
+group_users%>% 
+    arrange(desc(weeks_count)) %>% 
+    head(20) %>% arrange(desc(ratio_tuesdays))
+
+
+group_users%>% 
+    arrange(desc(weeks_count)) %>% 
+    head(20) %>% arrange(desc(ratio_tuesdays)) 
+
+
+group_users_gather <- group_users %>% 
+        head(20) %>% 
+        ungroup() %>% 
+        mutate(screen_name=fct_reorder(screen_name,count_tweets)) %>% 
+        select(-user_id,-weeks_in_splitted,-weeks_in,-date_min,-date_max) %>% 
+        gather(key="key",
+               value="value",
+               -screen_name)
+
+group_users_gather %>% 
+    filter(key%in%c("tuesdays","not_tuesday")) %>% 
+    ggplot(aes(screen_name,value,fill=key))+
+    geom_col()+
+    coord_flip()+
+    labs(title="Top 20 by amount Tweets in tidy tuesday",
+         subtitle = "week 51 discarded",
+         x="",
+         y="#amount tweets",
+         fill="posted on")
+
+
+```
+
+
+# user participation by week
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+group_users_gather2 <- group_users %>% 
+        ungroup() %>% 
+        mutate(screen_name=fct_reorder(screen_name,count_tweets)) %>% 
+        select(-user_id,-weeks_in_splitted,-weeks_in,-date_min,-date_max) %>% 
+        gather(key="key",
+               value="value",
+               -screen_name)
+
+spread2 <- group_users_gather2 %>% 
+    filter(key%in%c("weeks_count","count_tweets","tweets_week_participate")) %>% 
+    spread(key,value) 
+
+threshold <- 3
+
+
+# it really doesnt matter to this business. 
+# as everyone will post 1 with the tags, except the administrators :P
+spread2 %>% 
+    ggplot(aes(x=weeks_count,
+               y=count_tweets,
+               size=tweets_week_participate,
+               label=paste0("@",screen_name)))+
+    geom_point(alpha=0.5)+
+    ggrepel::geom_text_repel(data=subset(spread2,tweets_week_participate > threshold) ,
+
+                    hjust=5,
+                    x_nudge=50,
+                    # direction = "x",
+                    size=3,
+                    segment.size = 0.4,
+                    segment.color="blue",
+                    color="blue"
+                    )+ 
+    labs(title="Participated weeks vs tweet amounts in tidy tuesday",
+         subtitle = "week 51 discarded",
+         x="#participated in N weeks",
+         y="#amount tweets",
+         size="participation ratio ( tweet/week )") +
+    theme_light()
+    # theme(label.)
+
+
+# still want to show something with weeks of participation 
+
+spread2 %>% 
+    arrange(desc(weeks_count)) %>% 
+    head(20) %>% 
+    mutate(screen_name=fct_reorder(screen_name,weeks_count)) %>% 
+    ggplot(aes(screen_name,weeks_count,fill=screen_name))+
+    geom_col()+
+    coord_flip()+
+    labs(title="Top 20 by week participation in tidy tuesday",
+         x="",
+         y="#amount of weeks participated",
+         fill="posted on")+
+    theme_light()+
+    theme(legend.position = "none")
+
+```
+
+# slow users: 
+
+- idea was not on tuesday , and hoyw mucha mount of delay.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# group_weeks_user <- tidytuesday_tweets_raw %>% 
+#     mutate(week_n = lubridate::week(created_at)) %>% 
+#     
+#     group_by(week_n) %>% 
+#     summarise(week_n_total = n(),
+#               week_min=min(created_at)+ days(1),# starts pm tuesday
+#               week_max=max(created_at)+ days(1),
+#               sum_retweets_week=sum(retweet_count),
+#               sum_favourites_week=sum(favorite_count),
+#               acum_words = paste0(text,collapse = "|"),
+#               acum_users = paste0(unique(screen_name),collapse=";"))
+```
