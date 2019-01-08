@@ -1,4 +1,4 @@
-![](https://github.com/rfordatascience/tidytuesday/blob/master/static/tidytuesday_logo.jpg)
+![](static/tidytuesday_logo.jpg)
 
 ## A weekly social data project in R
 
@@ -6,7 +6,7 @@ A weekly data project aimed at the R ecosystem. An emphasis will be placed on un
 
 ***
 
-Join the R4DS online learning community in the weekly #TidyTuesday event! Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data. While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various `R for Data Science` techniques to wrangle the data into a true tidy format. The goal of `TidyTuesday` is to apply your R skills, get feedback, explore other’s work, and connect with the greater `#RStats` community! As such we encourage everyone of all skills to participate! 
+Join the R4DS online learning community in the weekly `#TidyTuesday` event! Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data. While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various `R for Data Science` techniques to wrangle the data into a true tidy format. The goal of `TidyTuesday` is to apply your R skills, get feedback, explore other’s work, and connect with the greater `#RStats` community! As such we encourage everyone of all skills to participate! 
 
 We will have many sources of data and want to emphasize that **no causation** is implied. There are various moderating variables that affect all data, many of which might not have been captured in these datasets. As such, our guidelines are to use the data provided to practice your data tidying and plotting techniques. Participants are invited to consider for themselves what nuancing factors might underlie these relationships. 
 
@@ -31,41 +31,43 @@ We welcome all newcomers, enthusiasts, and experts to participate, but be mindfu
 ## Submitting Datasets
 Want to submit an interesting dataset? Please open an [Issue](https://github.com/rfordatascience/tidytuesday/issues) and post a link to the article (or blogpost, etc) using the data, then we can discuss adding it to a future TidyTuesday Event!
 
+## Submitting Code Chunks
+Want to submit a useful code-chunk? Please submit as a [Pull Request](https://github.com/rfordatascience/tidytuesday/tree/master/community_resources/code_chunks) and follow the [guide](https://github.com/rfordatascience/tidytuesday/blob/master/community_resources/code_chunks/readme.md).
+
 ***
 
 # DataSets
-## [2018](https://github.com/rfordatascience/data/2018)
+## [2018](data/2018)
 
-## 2019
+## [2019](data/2019)
 | Week | Date | Data | Source | Article
 | :---: | :---: | :--- | :--- | :---|
-| 1 | `2019-01-01` | [#Rstats & #TidyTuesday Tweets](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-01-01) | [`rtweet`](https://rtweet.info/) | [stackoverflow.blog](https://stackoverflow.blog/2017/10/10/impressive-growth-r/) |
+| 1 | `2019-01-01` | [#Rstats & #TidyTuesday Tweets](data/2019/2019-01-01) | [`rtweet`](https://rtweet.info/) | [stackoverflow.blog](https://stackoverflow.blog/2017/10/10/impressive-growth-r/) |
+| 2 | `2019-01-08` | [TV's Golden Age](data/2019/2019-01-08) | [IMDb](https://www.imdb.com/) | [The Economist](https://www.economist.com/graphic-detail/2018/11/24/tvs-golden-age-is-real) |
+
 ***  
 
 # Useful links
 
-[The R4DS Online Learning Community](https://www.rfordatasci.com)
+| Link | Description |
+| --- | --- |
+| [:link:](https://www.rfordatasci.com) | The R4DS Online Learning Community Website|
+| [:link:](http://r4ds.had.co.nz/) | The R for Data Science textbook |
+| [:link:](https://carbon.now.sh/) | Carbon for sharing beautiful code pics |
+| [:link:](https://github.com/MilesMcBain/gistfo) | Post gist to Carbon from RStudio |
+| [:link:](https://github.com/yonicd/carbonate) | Post to Carbon from RStudio |
+| [:link:](https://github.com/join) | Join GitHub! |
+| [:link:](https://guides.github.com/activities/hello-world/) | Basics of GitHub |
+| [:link:](https://happygitwithr.com/) | Learn how to use GitHub with R |
+| [:link:](https://cran.r-project.org/web/packages/fivethirtyeight/fivethirtyeight.pdf) | The `fivethirtyeight` data package | [:link](http://ggplot2.tidyverse.org/reference/ggsave.html) | Save high-rez `ggplot2` images |
 
-[The R for Data Science textbook](http://r4ds.had.co.nz/)
+# Useful data sources
 
-[Carbon lets you post beautiful code directly to Twitter!](https://carbon.now.sh/)
+| Link | Description |
+| --- | --- |
+| [:link:](https://docs.google.com/spreadsheets/d/1wZhPLMCHKJvwOkP4juclhjFgqIY8fQFMemwKL2c64vk/edit#gid=0) | Data is Plural collection |
+| [:link:](https://github.com/BuzzFeedNews/everything/blob/master/README.md) | BuzzFeedNews GitHub |
+| [:link:](https://github.com/theeconomist/) | The Economist GitHub |
 
-[Post to Carbon.now.sh from RStudio](https://github.com/MilesMcBain/gistfo)
-
-[Another carbon.now.sh from within RStudio](https://github.com/yonicd/carbonate)
-
-[We will use the fivethirtyeight package frequently for “tame" data](https://cran.r-project.org/web/packages/fivethirtyeight/fivethirtyeight.pdf)
-
-[GitHub lets you host raw code for free!](https://github.com/)
-
-[A guide to getting started with GitHub](https://guides.github.com/activities/hello-world/)
-
-[How to save high quality `ggplot2` images](http://ggplot2.tidyverse.org/reference/ggsave.html)
-
-[Makeover Monday](http://www.makeovermonday.co.uk/data/)
-
-[Data Is Plural](https://docs.google.com/spreadsheets/d/1wZhPLMCHKJvwOkP4juclhjFgqIY8fQFMemwKL2c64vk/edit#gid=0)
-
-[BuzzFeed Data](https://github.com/BuzzFeedNews/everything/blob/master/README.md)
 
 ***
