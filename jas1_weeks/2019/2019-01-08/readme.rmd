@@ -1,0 +1,204 @@
+---
+title: "week: 2019-01-08"
+author: "julio"
+date: "2019-01-09"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-01-08: tv series
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data is the economist tv series dataset
+
+### objectives:
+
+- apply apriori to get "most common types"
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(arules)#install.packages('arules')
+library(arulesViz)#install.packages('arulesViz')
+
+library(igraph)
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+imdb_ratings_file<- here::here("data","2019","2019-01-08","IMDb_Economist_tv_ratings.csv")
+imdb_ratings_raw <- readr::read_csv(imdb_ratings_file)
+
+# set lubridate start on tuesday
+# options(lubridate.week.start = 1)
+
+dplyr::glimpse(imdb_ratings_raw)
+
+```
+
+each row is a season of a tv series.
+
+* the a priori comes in: a series is a transaction
+* the genres are the itemsets
+* the genre its the item
+
+add a column to show: title+season
+will use titleId + seasonNumber to make the transaction id
+
+this will point which itemsets are more common sold. 
+and then can compare with its success on average rating.
+
+
+references for general apriori: 
+https://www.datacamp.com/community/tutorials/market-basket-analysis-r
+http://michael.hahsler.net/research/arules_RUG_2015/demo/#association-rules
+and 2015 course of: datamining subject - http://datamining.dc.uba.ar/datamining/
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+imdb_ratings_processed<- imdb_ratings_raw %>% 
+    mutate(tx_id=paste0(titleId,"-",seasonNumber)) %>% 
+    mutate(itemset=str_split(genres,",")) 
+
+
+tx_file <- imdb_ratings_processed %>% 
+    select(tx_id,itemset) %>% 
+    unnest() %>% 
+    filter(itemset!="Drama")
+
+tx_file_2 <- imdb_ratings_processed %>% 
+    select(tx_id,itemset) %>% 
+    tibble::rownames_to_column() %>% 
+    mutate(r_id=as.integer(rowname)) %>% 
+    select(r_id,itemset) %>% 
+    unnest() %>% 
+    filter(itemset!="Drama")
+
+data_file <- here::here("jas1_weeks","2019","2019-01-08","tx_file_2.txt")
+write.csv(tx_file_2,file = data_file,row.names=FALSE,fileEncoding = "UTF-8")
+
+tx <- read.transactions(data_file ,
+                        format = "single",
+                        sep = ",",
+                        cols = c("r_id", "itemset"),
+                        rm.duplicates = TRUE)
+
+tx_2 <- read.transactions(data_file ,
+                        format = "single",
+                        sep = ",",
+                        cols = c("r_id", "itemset"),
+                        rm.duplicates = FALSE)
+    
+    # https://stackoverflow.com/questions/43500577/item-frequency-plots-from-object-of-class-transactions-in-ggplot2
+    tx_for_plot <- tx_2 %>%
+    itemFrequency() %>%
+    as_tibble() %>%
+    tibble::rownames_to_column() %>%
+    rename(genre=rowname) %>% 
+    mutate(genre=fct_reorder(genre,value))
+    
+    set.seed(12345)
+    tx_for_plot %>% 
+    ggplot(aes(genre,value,fill=genre)) + 
+    geom_col() + 
+    theme_light()+
+    theme(legend.position = "none")+
+    coord_flip()+
+        labs(title="2nd associated genre for drama TV shows",
+             subtitle="",
+             x="",
+             y="frequency",
+             caption = "dataset: TV ratings covers 'all TV dramas ... via IMDb from 1990 to 2018"
+             )
+    
+    #Mine Frequent Itemsets
+    #Find an interesting support (have at least 500 observations)
+    # 
+    # 500 >> 532911 >> ~0.1% = 0.001
+    # 2096  >>  ~0.1%% = 0.01 >> ~20
+    # 
+    # param_support <- floor(nrow(tx_2)*0.02) / nrow(tx_2)# support
+    # param_confidence <- 0.9 # confidence:
+    # min_rule_lenght <- 2 # 2 min combinations of genres
+
+   
+    rules <- apriori(tx_2,
+                 parameter=list(supp=0.01, conf=0.5,maxlen=10))
+    rules
+    
+    inspect(head(sort(rules, by = "lift"), n=10))
+    plot(head(sort(rules, by = "lift"), n=50), method = "graph", control=list(cex=.8))
+    plot(head(sort(rules, by = "lift"), n=50), method = "graph",engine="htmlwidget", control=list(cex=.8))
+    
+    # itemFrequencyPlot(tx,topN=50,  cex.names=.5)
+
+```
+
+welll it didnt worked as i expected ... ill try other pov.
+given the titles & the genres
+
+make a graph of that.
+then project on the genres, so each relation will be a "count" ocurrences
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+graph_edges <- imdb_ratings_processed %>% 
+    select(tx_id,itemset) %>% 
+    unnest() %>% 
+    filter(itemset!="Drama")
+
+genre_list <-  graph_edges %>% count(itemset) %>% pull (itemset)
+
+graph_full <- igraph::graph_from_data_frame(graph_edges)
+igraph::is_directed(graph_full)
+
+# logic
+igraph::V(graph_full)$type <- igraph::V(graph_full)$name %in% (genre_list )
+
+igraph::is_bipartite(graph_full)
+
+g_projections <- igraph::bipartite_projection(graph_full,multiplicity = TRUE)
+
+g_genre <- g_projections$proj2
+
+igraph::vertex_attr_names(g_genre)
+igraph::edge_attr_names(g_genre)
+
+igraph::E(g_genre)$width <- log(igraph::E(g_genre)$weight +1)
+igraph::V(g_genre)$size <- degree(g_genre)
+
+# g_genre_2 <- g_genre %e% set
+
+hist(igraph::E(g_genre)$weight)
+
+plot(g_genre, layout_on_grid(g_genre))
+plot(g_genre, layout.auto(g_genre))
+
+visNetwork::visIgraph(g_genre)
+
+```
