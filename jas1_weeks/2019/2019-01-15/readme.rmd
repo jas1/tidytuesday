@@ -1,0 +1,155 @@
+---
+title: "week: 2019-01-15"
+author: "julio"
+date: "2019-01-09"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-01-08: space trips
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data is the economist tv series dataset
+
+### objectives:
+
+- apply correlation / autocorrelation of trips. just to remember that tool :D
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(ggrepel)
+# library(arules)#install.packages('arules')
+# library(arulesViz)#install.packages('arulesViz')
+# 
+# library(igraph)
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+launches_file<- here::here("data","2019","2019-01-15","launches.csv")
+agencies_file<- here::here("data","2019","2019-01-15","agencies.csv")
+launches_raw <- readr::read_csv(launches_file)
+agencies_raw <- readr::read_csv(agencies_file)
+
+# set lubridate start on tuesday
+# options(lubridate.week.start = 1)
+
+dplyr::glimpse(launches_raw)
+dplyr::glimpse(agencies_raw)
+
+```
+
+what can i say with cross correlation / auto correlations ?
+remember> 
+cross correlations > its way to cross a time series with another and see if there is some correlations of values
+
+auto correlations > its the same but with the same time series
+
+this time i have rocket trips.
+
+i can say day have or have not a rocket trip by agency, i suspect that there are not much rocket trips, so it will be difficult to get a number.
+
+i can say if agregate all agencies may be get a " this thay we have multiple rocket trips."
+
+but in data wont say much. also periods of time.
+
+i might try to spread the correlations as per year per agency.
+
+then can autocorrelate and see if there is some kind of schedule dates in the year.
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+launches_raw %>% count(agency,sort=TRUE) %>% View()
+```
+
+
+as count by agency we see got a bunch of NA !  like tons ! 
+its quite difficult to me to not wonder why so much.
+my guess, year related
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+launches_raw %>% 
+    count(launch_year,agency) %>% 
+    arrange(launch_year) %>% 
+    ggplot(aes(x=launch_year,y=n,fill=agency)) +
+    geom_col() +
+    geom_vline(xintercept = 1991,
+               color="red", linetype = "dashed")+
+    # geom_label(x=2000,y=130,label="Cold War End",color="black",show_guide  = FALSE)+
+    
+    annotate(ggrepel::GeomLabelRepel, 
+             x = 1991, 
+             y = 140, 
+             fill="#f8766d", 
+             colour="black", 
+             label = "Cold War End",
+             nudge_x = 15)+
+    
+    labs(title="Launches per year per agency",
+         x="",y="",fill="Agency Code",label="",
+         caption = "#TidyTuesday week 2019-01-15")+
+    
+    theme_light()
+
+```
+i was thinking year related as not tagged old data but ... this its like woa , 90's start 
+thats the end of cold war, so i added a cold war vline to show this 
+
+and Amazing the NA disapears after short time after the end of cold war!
+
+what about failures over years 
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+launches_raw %>% 
+    count(launch_year,category) %>% 
+    arrange(launch_year) %>% 
+    ggplot(aes(x=launch_year,y=n,fill=category)) +
+    geom_col() +
+    geom_vline(xintercept = 1991,
+               color="red", linetype = "dashed")+
+    geom_label(x=1992,y=100,label="Cold War End",show_guide  = FALSE)+
+    labs(title="Launches per year per agency",
+         x="",y="",fill="Agency Code",
+         caption = "#TidyTuesday week 2019-01-15")+
+    
+    theme_light()
+```
+really small time this week . 
+so wont be investing more. 
+
+was nice to discover something that might explain NA's.
+
+and well the autocorrelations & cross correlations will be for other time. 
+
+enough for today :D 

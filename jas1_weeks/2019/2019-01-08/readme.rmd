@@ -147,12 +147,19 @@ tx_2 <- read.transactions(data_file ,
 
    
     rules <- apriori(tx_2,
-                 parameter=list(supp=0.01, conf=0.5,maxlen=10))
-    rules
+                 parameter=list(supp=0.01,
+                                conf=0.5,
+                                maxlen=10))
+
+    plot(head(sort(rules, by = "lift"), n=50),
+         method = "graph",
+         control=list(cex=.8))
     
-    inspect(head(sort(rules, by = "lift"), n=10))
-    plot(head(sort(rules, by = "lift"), n=50), method = "graph", control=list(cex=.8))
-    plot(head(sort(rules, by = "lift"), n=50), method = "graph",engine="htmlwidget", control=list(cex=.8))
+    
+    plot(head(sort(rules, by = "lift"), n=50),
+         method = "graph",
+         engine="htmlwidget",
+         control=list(cex=.8))
     
     # itemFrequencyPlot(tx,topN=50,  cex.names=.5)
 
