@@ -45,6 +45,7 @@ Want to submit a useful code-chunk? Please submit as a [Pull Request](https://gi
 | 1 | `2019-01-01` | [#Rstats & #TidyTuesday Tweets](data/2019/2019-01-01) | [`rtweet`](https://rtweet.info/) | [stackoverflow.blog](https://stackoverflow.blog/2017/10/10/impressive-growth-r/) |
 | 2 | `2019-01-08` | [TV's Golden Age](data/2019/2019-01-08) | [IMDb](https://www.imdb.com/) | [The Economist](https://www.economist.com/graphic-detail/2018/11/24/tvs-golden-age-is-real) |
 | 3 | `2019-01-15` | [Space Launches](data/2019/2019-01-15) | [JSR Launch Vehicle Database](http://www.planet4589.org/space/lvdb/index.html) | [The Economist](https://economist.com/graphic-detail/2018/10/18/the-space-race-is-dominated-by-new-contenders) |
+| 4 | `2019-01-22` | [Incarceration Trends](data/2019/2019-01-22) | [Vera Institute](https://github.com/vera-institute/incarceration_trends) | [Vera Institute](https://github.com/vera-institute/incarceration_trends) |
 
 ***  
 
@@ -60,7 +61,7 @@ Want to submit a useful code-chunk? Please submit as a [Pull Request](https://gi
 | [:link:](https://github.com/join) | Join GitHub! |
 | [:link:](https://guides.github.com/activities/hello-world/) | Basics of GitHub |
 | [:link:](https://happygitwithr.com/) | Learn how to use GitHub with R |
-| [:link:](https://cran.r-project.org/web/packages/fivethirtyeight/fivethirtyeight.pdf) | The `fivethirtyeight` data package | [:link](http://ggplot2.tidyverse.org/reference/ggsave.html) | Save high-rez `ggplot2` images |
+| [:link:](http://ggplot2.tidyverse.org/reference/ggsave.html) | Save high-rez `ggplot2` images |
 
 # Useful data sources
 
@@ -69,6 +70,6 @@ Want to submit a useful code-chunk? Please submit as a [Pull Request](https://gi
 | [:link:](https://docs.google.com/spreadsheets/d/1wZhPLMCHKJvwOkP4juclhjFgqIY8fQFMemwKL2c64vk/edit#gid=0) | Data is Plural collection |
 | [:link:](https://github.com/BuzzFeedNews/everything/blob/master/README.md) | BuzzFeedNews GitHub |
 | [:link:](https://github.com/theeconomist/) | The Economist GitHub |
-
+| [:link:](https://cran.r-project.org/web/packages/fivethirtyeight/fivethirtyeight.pdf) | The `fivethirtyeight` data package 
 
 ***
