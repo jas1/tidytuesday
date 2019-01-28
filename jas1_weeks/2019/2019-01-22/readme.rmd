@@ -1,0 +1,303 @@
+---
+title: "week 2019-01-22 incarceration USA #rstats #tidytuesday"
+author: "_jas"
+date: 20190127
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-01-22
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to incarceration in USA by state.
+
+### objectives:
+
+want to test the prohpet library.
+- do a TS forecast on some subset of the data.
+
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(naniar)
+library(cowplot)
+library(rstan) # install.packages("rstan")
+library(prophet)# install.packages("prophet")
+library(ggrepel)
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+prision_population_file <- here::here("data","2019","2019-01-22","prison_population.csv")
+prision_population_raw <- readr::read_csv(prision_population_file)
+
+prision_population_processed <- prision_population_raw %>% 
+    mutate(decade = floor(year / 10)*10 ) %>% 
+    naniar::add_any_miss()
+
+dplyr::glimpse(prision_population_processed)
+skimr::skim(prision_population_processed)
+```
+
+we can see that there are a lot of missings on population and prission populations. 
+2 things to take in account: 
+1) data might not be recorded on digital
+2) data might not be existant.
+
+from there we assume that as time goes on , missings will fall down.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+prision_population_processed %>% 
+    count(decade,any_miss_all,sort = TRUE) %>% 
+    ggplot(aes(decade,n,fill=any_miss_all)) +
+        geom_col() +
+        theme_light() +
+        scale_y_continuous(labels = scales::number) +
+        coord_flip()+
+        labs(title="Evolution of missings by decade",
+             subtitle = "1970 - 2016",
+             caption = "#tidytuesday week: 2019-01-22",
+             x="",y="# of registries",
+             fill="is missing ?")
+```
+
+Can see that that completeness of registries evolved quite fine since 1970, with a big jump in 1990.
+
+
+Lets check the smaller datasets to see if this has been handled
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+prision_summary_file <- here::here("data","2019","2019-01-22","prison_summary.csv")
+prision_summary_raw <- readr::read_csv(prision_summary_file)
+
+prision_summary_processed <- prision_summary_raw %>% 
+    mutate(decade = floor(year / 10)*10 ) %>% 
+    naniar::add_any_miss()
+
+dplyr::glimpse(prision_summary_processed)
+skimr::skim(prision_summary_processed)
+```
+
+well no missings for prision summary , ill use this to try to use prophet
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+prision_summary_plot_1 <- prision_summary_processed %>% 
+    group_by(decade,urbanicity,pop_category) %>% 
+    summarise(sum_decade_rate=sum(rate_per_100000))
+
+# validation of numbers
+# prision_summary_processed %>% 
+#     filter(decade == 1980, urbanicity=='rural',pop_category=='Black') %>% 
+#     pull(rate_per_100000) %>% sum()
+
+# race  / gender  / total
+
+pop_category_gender <- c("Male","Female")
+pop_category_total <- c("Total")
+pop_category_race_not <- c(pop_category_gender,pop_category_total)
+
+# prision_summary_plot_1 %>% ungroup()%>%  count(pop_category)
+
+plot_race <- prision_summary_plot_1 %>% 
+    filter(!(pop_category %in% pop_category_race_not)) %>%
+    ggplot(aes(decade,sum_decade_rate,fill=pop_category)) +
+        geom_col() +
+        # coord_flip() +
+    facet_grid(urbanicity~.)+
+    labs(x="",y ="",
+         subtitle="Rate within a category for prison population per 100,000 people",
+         fill="race",
+         title="Prision summary, by urbanicity & race")
+
+plot_gender <- prision_summary_plot_1 %>% 
+    filter(pop_category %in% pop_category_gender) %>%
+    ggplot(aes(decade,sum_decade_rate,fill=pop_category)) +
+        geom_col() +
+        # coord_flip() +
+    facet_grid(urbanicity~.)+
+    labs(x="",y ="",
+         subtitle="Rate within a category for prison population per 100,000 people",
+         fill="gender",
+         title="Prision summary, by urbanicity & gender")
+
+plot_total <- prision_summary_plot_1 %>% 
+    filter(pop_category %in% pop_category_total) %>%
+    ggplot(aes(decade,sum_decade_rate)) +
+        geom_col() +
+        # coord_flip() +
+    facet_grid(urbanicity~.)+
+    labs(x="",y ="",
+         subtitle="Rate within a category for prison population per 100,000 people",
+         title="Prision summary, Total by urbanicity")
+
+plot_race_2<- prision_summary_plot_1 %>% 
+    filter(!(pop_category %in% pop_category_race_not)) %>%
+    ggplot(aes(decade,sum_decade_rate,fill=pop_category)) +
+        geom_col() +
+        coord_flip() +
+    facet_grid(urbanicity~.)+
+    labs(x="",y ="",
+         subtitle="Rate within a category for prison population per 100,000 people",
+         fill="race",
+         title="Prision summary, by urbanicity & race")
+
+plot_gender_2 <- prision_summary_plot_1 %>% 
+    filter(pop_category %in% pop_category_gender) %>%
+    ggplot(aes(decade,sum_decade_rate,fill=pop_category)) +
+        geom_col() +
+        coord_flip() +
+    facet_grid(urbanicity~.)+
+    labs(x="",y ="",
+         subtitle="Rate within a category for prison population per 100,000 people",
+         fill="gender",
+         title="Prision summary, by urbanicity & gender")
+
+plot_total_2 <- prision_summary_plot_1 %>% 
+    filter(pop_category %in% pop_category_total) %>%
+    ggplot(aes(decade,sum_decade_rate)) +
+        geom_col() +
+        coord_flip() +
+    facet_grid(urbanicity~.)+
+    labs(x="",y ="",
+         subtitle="Rate within a category for prison population per 100,000 people",
+         title="Prision summary, Total by urbanicity")
+
+plot_total
+plot_gender
+plot_race
+plot_total_2
+plot_gender_2
+plot_race_2
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+prision_summary_prophet_1 <- prision_summary_processed %>% 
+    group_by(year,pop_category) %>% 
+    summarise(sum_yearly_rate=sum(rate_per_100000)) %>% 
+    ungroup() %>%
+    mutate(ds=ymd(paste(year,'12','31'))) %>% # for prophet
+    rename(y=sum_yearly_rate)
+
+prophet_total <- prision_summary_prophet_1 %>% 
+    filter(pop_category=="Total") %>% 
+    # filter(urbanicity==param_urbanicity) %>%
+    ungroup() %>% 
+    select(ds,y)
+m <- prophet(prophet_total,seasonality.mode = 'multiplicative')
+future <- make_future_dataframe(m, periods = 5,freq ='year' ) # head(future)
+forecast <- predict(m, future) # tail(forecast) # plot(m, forecast)
+forecast_2 <- forecast %>% mutate(ds2 = as.Date(ds))
+join_w_forecast <- prophet_total %>% full_join(forecast_2,by = c("ds"="ds2"))
+filtered_points <- join_w_forecast %>% filter(ds>ymd("2015-12-31"))
+
+
+
+prision_summary_prophet_urbanicities <- prision_summary_processed %>% 
+    group_by(year,urbanicity,pop_category) %>% 
+    summarise(sum_yearly_rate=sum(rate_per_100000)) %>% 
+    ungroup() %>%
+    mutate(ds=ymd(paste(year,'12','31'))) %>% # for prophet
+    rename(y=sum_yearly_rate)
+
+make_forecast <- function(data_forecast,param_urbanicity="rural"){
+    prophet_total <- data_forecast %>% 
+        filter(pop_category=="Total") %>% 
+        filter(urbanicity==param_urbanicity) %>%
+        ungroup() %>% 
+        select(ds,y)
+    
+    m <- prophet(prophet_total,seasonality.mode = 'multiplicative')
+    future <- make_future_dataframe(m, periods = 5,freq ='year' )
+    # head(future)
+    forecast <- predict(m, future)
+    # tail(forecast)
+    # plot(m, forecast)
+    forecast_2 <- forecast %>% mutate(ds2 = as.Date(ds))
+    join_w_forecast <- prophet_total %>% 
+        full_join(forecast_2,by = c("ds"="ds2"))
+    
+    filtered_points <- join_w_forecast %>% filter(ds>ymd("2015-12-31"))
+    
+    plot_ret <- ggplot(join_w_forecast, aes(x=ds,y=y,label=as.character(yhat) )) + 
+        geom_point(aes(y=y),colour="#0072b2") +
+        geom_point(data=filtered_points,
+                   aes(y=yhat), col="red", size=3) +
+        geom_line(aes(y=yhat),colour="#0172b2") + 
+        geom_ribbon(aes(ymin=yhat_lower, ymax=yhat_upper), fill="#cce2ef", alpha=0.5) +
+        geom_text(data = filtered_points,aes(label=as.character(yhat)))+
+        theme_light()+
+        labs(x="",y="",
+             title= "Forecast of total population in prison",
+             subtitle= paste0("Rate per 100000 forecast, for ",param_urbanicity),
+             caption = "#tidytuesday week: 2019-01-22")
+    plot_ret
+}
+
+p_total <- ggplot(join_w_forecast, aes(x=ds,y=y,label=as.character(yhat) )) + 
+    geom_point(aes(y=y),colour="#0072b2") +
+    geom_point(data=filtered_points,
+               aes(y=yhat), col="red", size=3) +
+    geom_line(aes(y=yhat),colour="#0172b2") + 
+    geom_ribbon(aes(ymin=yhat_lower, ymax=yhat_upper), fill="#cce2ef", alpha=0.5) +
+    geom_text(data = filtered_points,aes(label=as.character(yhat)))+
+    theme_light()+
+    labs(x="",y="",
+         title= "Forecast of total population in prison",
+         subtitle= "Rate per 100000 forecast, all urbanicities",
+         caption = "#tidytuesday week: 2019-01-22")
+
+
+pl_rur <- make_forecast(prision_summary_prophet_urbanicities,"rural")
+pl_sm <- make_forecast(prision_summary_prophet_urbanicities,"small/mid")
+pl_su <- make_forecast(prision_summary_prophet_urbanicities,"suburban")
+pl_u <- make_forecast(prision_summary_prophet_urbanicities,"urban")
+
+p_total
+cowplot::plot_grid(pl_rur,pl_sm)
+cowplot::plot_grid(pl_su,pl_u)
+  
+
+# prophet_plot_components(m, forecast)
+```
+
+
+# Communicate
+
+- tested the library quite easy to get it going , lot experimenting to be done =) .
+
+- usefull data on: 
+
+- https://facebook.github.io/prophet/docs/non-daily_data.html
+- https://facebook.github.io/prophet/docs/quick_start.html#r-api
+- https://facebook.github.io/prophet/
+- https://quantdare.com/playing-with-prophet-again/
+- https://mode.com/example-gallery/forecasting_prophet_r_cookbook
+
+
