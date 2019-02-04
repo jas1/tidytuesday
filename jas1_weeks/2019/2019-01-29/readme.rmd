@@ -1,0 +1,168 @@
+---
+title: "week 2019-01-29 #rstats #tidytuesday diary"
+author: "_jas"
+date: 20190129
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-01-29 diary
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to diary in USA.
+
+### objectives:
+
+try prophet again
+
+- do a TS forecast on some subset of the data.
+- do some cheese colors on ggplot
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(naniar)
+library(rpart)
+library(rpart.plot)
+library(cowplot)
+library(rstan) # install.packages("rstan")
+library(prophet)# install.packages("prophet")
+library(ggrepel)
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+milkcow_facts_file <- here::here("data","2019","2019-01-29","milkcow_facts.csv")
+milkcow_facts_raw <- readr::read_csv(milkcow_facts_file)
+
+milkcow_facts_processed <- milkcow_facts_raw %>% 
+    mutate(decade = floor(year / 10)*10 ) %>% 
+    naniar::add_any_miss()
+
+dplyr::glimpse(milkcow_facts_processed)
+skimr::skim(milkcow_facts_processed)
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+clean_cheese_file <- here::here("data","2019","2019-01-29","clean_cheese.csv")
+clean_cheese_raw <- readr::read_csv(clean_cheese_file)
+
+clean_cheese_processed <- clean_cheese_raw %>% janitor::clean_names()
+
+dplyr::glimpse(clean_cheese_processed)
+skimr::skim(clean_cheese_processed)
+# m <- rpart(outcome ~ loan_amount + credit_score, data = loans, method = "class")
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+fluid_milk_sales_file <- here::here("data","2019","2019-01-29","fluid_milk_sales.csv")
+fluid_milk_sales_raw <- readr::read_csv(fluid_milk_sales_file)
+
+fluid_milk_sales_processed <- fluid_milk_sales_raw %>% janitor::clean_names()
+
+dplyr::glimpse(fluid_milk_sales_processed)
+skimr::skim(fluid_milk_sales_processed)
+
+
+data_for_ts <- fluid_milk_sales_processed %>% 
+    mutate(ds=ymd(paste(year,'12','31'))) %>% # for prophet
+    rename(y=pounds) %>% 
+    select(milk_type,ds,y) %>% 
+    filter(milk_type != 'Total Production')
+
+# fluid_milk_sales_processed %>% pull(year) %>%  range()
+
+# 
+# data_for_ts %>% count(milk_type)%>% pull(milk_type)
+# [1]                             
+# [4]                      
+# [7]                   
+milk_colors <-  c("Whole"="#fff7d7",
+                  "Skim" = "#f0e7e0",
+                  "Reduced Fat (2%)"="#dbd6ab",
+                  "Low Fat (1%)" = "#d8c49c",
+                  "Flavored (Whole)"="#cca472",
+                  # "Flavored  (Not Whole)"="#dfb593",
+                  "Flavored  (Not Whole)"="#ecddcd",
+                  
+                  "Eggnog"="#d4a17f",
+                  "Buttermilk"="#cc615b")
+data_for_ts %>% 
+    ggplot(aes(y=y/1000000,x=ds,fill=milk_type))+
+    geom_col() +
+    scale_fill_manual(values = milk_colors)+
+    # scale_y_continuous(labels = scales::number_format)+
+    labs(title="Evolution of milk type sales in USA (1975-2017)",
+         subtitle="in Millions pounds",
+         caption = "#rstats # tidytuesday week 2019-01-29",
+         fill="Milk Type",
+         x="", y="")
+    
+    
+
+# 
+# make_forecast <- function(data_forecast,filter_var="rural"){
+#     prophet_total <- data_forecast %>% 
+#         filter(pop_category=="Total") %>% 
+#         filter(urbanicity==param_urbanicity) %>%
+#         ungroup() %>% 
+#         select(ds,y)
+#     }
+
+
+
+# m <- rpart(outcome ~ loan_amount + credit_score, data = loans, method = "class")
+```
+
+# communicate
+
+time counting ... so got to adjust schedule. 
+
+so gone only for the colors =) 
+
+## some usefull data in: 
+
+https://ggplot2.tidyverse.org/reference/scale_manual.html
+
+also take care on scale_fill_manual, or scale_colour_manual . 
+
+
+## some  colours inspirations on: 
+
+https://www.color-hex.com/color-palette/70954
+
+https://www.color-hex.com/color-palettes/?keyword=milk
+
+https://www.color-hex.com/color-palette/14317
+
+https://color.adobe.com/nuvole-color-theme-11975068/
