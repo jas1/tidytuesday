@@ -1,0 +1,178 @@
+---
+title: "week 2019-01-29 #rstats #tidytuesday mortgages"
+author: "_jas"
+date: 20190129
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-01-29 mortgages
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to mortgages & recesions in USA.
+
+### objectives:
+
+- use the anomalize package on mortgages
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(naniar)
+library(rpart)
+library(rpart.plot)
+library(cowplot)
+library(rstan) # install.packages("rstan")
+library(prophet)# install.packages("prophet")
+library(ggrepel)
+library(anomalize)
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+mortgage_file <- here::here("data","2019","2019-02-05","mortgage.csv")
+mortgage_raw <- readr::read_csv(mortgage_file)
+
+mortgage_process <- mortgage_raw %>% 
+    mutate(decade = floor(year / 10)*10 ) %>% 
+    naniar::add_any_miss()
+
+dplyr::glimpse(mortgage_raw)
+skimr::skim(mortgage_raw)
+```
+
+looking at data , and time span ... i'll focus on looking for anomalies on fixed_rate_30_yr
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+mortgage_anomalies <- mortgage_raw %>% select(date,fixed_rate_30_yr)
+
+mortgage_anomalies %>% 
+    ggplot(aes(x=date,y=fixed_rate_30_yr)) +
+    geom_line()
+
+anomalize::time_frequency(mortgage_anomalies, period = "auto")
+
+# mortgage_anomalies %>%  filter(year(date)==1972)
+
+mortgage_anom_4_plot <- mortgage_anomalies %>% 
+    time_decompose(fixed_rate_30_yr, 
+                   method = "stl", # stl = seasonal decomposition.
+                     trend =  paste0(13," weeks")
+                       # "auto"
+                   ) %>%
+      anomalize(remainder, method = "gesd") %>%
+time_recompose() 
+
+mortgage_anom_4_plot %>% 
+    plot_anomalies(time_recomposed = TRUE) %>% 
+    labs(x="")
+
+mortgage_anom_4_plot %>% 
+    plot_anomaly_decomposition() 
+
+```
+
+# removing years that are not complete
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+mgyearly <- mortgage_anomalies %>%  mutate(year = year(date))
+range(mgyearly$year)
+
+years_to_remove <- mgyearly %>% count(year) %>% filter(n<52) %>%  pull(year)
+
+years_removed <- mgyearly %>% filter(! (year %in% years_to_remove))
+
+years_removed %>%  
+    # filter(year==1972) %>%  
+    time_decompose(fixed_rate_30_yr, 
+                   method = "stl", # stl = seasonal decomposition.
+                     trend = "13 weeks"
+                   ) %>%
+      anomalize(remainder, method = "gesd") %>%
+time_recompose()  
+    
+    
+years_removed %>%  
+    # filter(year==1972) %>%  
+    time_decompose(fixed_rate_30_yr, 
+                   method = "stl", # stl = seasonal decomposition.
+                     trend = "13 weeks"
+                   ) %>%
+      anomalize(remainder, method = "gesd") %>%
+time_recompose() %>% 
+    
+    plot_anomalies(time_recomposed = TRUE)
+
+
+yr_plot <- years_removed %>%  
+    # filter(year==1972) %>%  
+    time_decompose(fixed_rate_30_yr, 
+                   method = "stl", # stl = seasonal decomposition.
+                     trend = "13 weeks"
+                   ) %>%
+      anomalize(remainder, method = "gesd") %>%
+time_recompose() 
+
+
+
+yr_plot %>% 
+ggplot(aes(date, observed,colour=anomaly)) +
+    geom_point(alpha = 0.25) +
+    scale_color_manual(values = c("Yes"="#e31a1c","No"="#2c3e50"))+
+
+    # geom_point(data=subset(yr_plot, anomaly == "No"),color = "#2c3e50", alpha = 0.25) +
+    # geom_point(data=subset(yr_plot, anomaly == "Yes"),color = "#e31a1c", alpha = 0.25) +
+    # facet_wrap(~ package, scale = "free_y", ncol = 3) +
+    theme_light() +
+    # scale_y_continuous(labels = scales::percent_format())+
+    scale_x_date(date_labels = "%Y-%m",date_breaks = "5 years") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "USA Mortgages: anomalies on Fixed rate 30 year mortgage (%) ",
+         subtitle = "from 1972-2018 [ decompose: stl-13 weeks & anomalies: gesd ]",
+         y="Fixed rate 30 year mortgage (%)",x="",
+         caption = "Data from TidyTuesday 2019-02-05 : USA Mortgages")
+
+```
+
+
+# communicate
+
+time counting ... so got to adjust schedule. 
+
+only for mortgages anomalies, 
+
+a way to improve its to put recesions periods on the same plot. 
+
+
+## some usefull data in: 
+
+- anomalize package and ggplot tuning with that data.
+- https://github.com/business-science/anomalize
+
