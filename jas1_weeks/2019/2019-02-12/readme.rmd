@@ -1,0 +1,198 @@
+---
+title: "Tidy tuesday challenge: Week 2019-01-29 Federal Research and Development Spending by Agency in USA"
+author: "julio"
+date: "16 de febrero de 2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-01-29 Federal Research and Development Spending by Agency in USA
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to Federal Research and Development Spending by Agency in USA
+
+### objectives:
+
+- objective not clear, just practice some data & visualization
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+library(visdat)#install.packages('visdat')
+library(stringr)
+library(naniar)
+library(rpart)
+library(rpart.plot)
+library(cowplot)
+library(rstan) # install.packages("rstan")
+library(prophet)# install.packages("prophet")
+library(ggrepel)
+library(anomalize)
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+fed_rd <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-12/fed_r_d_spending.csv")
+energy_spend <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-12/energy_spending.csv")
+climate_spend <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-12/climate_spending.csv")
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(fed_rd) 
+glimpse(energy_spend) 
+glimpse(climate_spend) 
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+skimr::skim(fed_rd) 
+skimr::skim(energy_spend)
+skimr::skim(climate_spend)
+
+```
+
+## tidy
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+is_outlier <- function(x,extreme_only=TRUE) {
+    if (extreme_only){
+        return (x > quantile(x, 0.75) + 1.5 * IQR(x))
+    }
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+totals_climate <- climate_spend %>% 
+    group_by(year) %>% 
+    summarise(total_spending=sum(gcc_spending))
+
+climate_spend_processed <- climate_spend %>% 
+    nest(year,gcc_spending) %>% 
+    mutate(db = purrr::map(data,
+                           ~ mutate(.x,
+                                    outlier=ifelse(is_outlier(gcc_spending,FALSE),
+                                                   year, 
+                                                   as.numeric(NA))))) %>% 
+    unnest() %>% 
+    left_join(totals_climate,by = c("year"="year")) %>% 
+    mutate(gcc_spending_porc = gcc_spending / total_spending) %>% 
+    mutate(department=forcats::fct_reorder(department,gcc_spending_porc)) 
+
+```
+
+## visualize
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+title_paster <- paste0("Spending by department")
+subtitle_paster <-  paste0("Global Climate Change Research Program: ", min(climate_spend$year),"-",max(climate_spend$year))
+
+climate_spend_processed %>% 
+    ggplot(aes(x=year,y=gcc_spending,color=department)) +
+        geom_line() +
+        scale_y_continuous(labels=scales::dollar_format()) +
+        labs(title=title_paster,
+             subtitle=subtitle_paster,
+             caption = "#tidytuesday week 2019-02-12",
+             x = "",
+             y="spending")
+
+climate_spend_processed %>% 
+    ggplot(aes(x=year,y=gcc_spending_porc,fill=department)) +
+        geom_col() +
+        scale_y_continuous(labels=scales::percent_format()) +
+        theme_light() +
+        # theme_dark() +
+        labs(title=title_paster,
+             subtitle=subtitle_paster,
+             caption = "#tidytuesday week 2019-02-12",
+             x = "",
+             y="spending")
+
+
+climate_spend_processed %>% 
+    ggplot(aes(x=year,y=gcc_spending_porc,fill=department)) +
+        geom_area() +
+        scale_y_continuous(labels=scales::percent_format()) +
+        theme_light() +
+        # theme_dark() +
+        labs(title=title_paster,
+             subtitle=subtitle_paster,
+             caption = "#tidytuesday week 2019-02-12",
+             x = "",
+             y="spending")
+
+
+climate_spend_processed %>% 
+    ggplot(aes(y=(gcc_spending/1000000),x=department,fill=department)) +
+        geom_boxplot(alpha=0.5) +
+        ggrepel::geom_text_repel(aes(label = outlier), na.rm = TRUE, hjust = -0.3) +
+        scale_y_continuous(labels=scales::dollar_format()) +
+        theme_light() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        # theme_dark() +
+        labs(title=paste0("Vairability of ",title_paster),
+             subtitle=subtitle_paster,
+             caption = "#tidytuesday week 2019-02-12",
+             x = "",
+             y="spending in millions")
+
+
+```
+
+
+
+
+## communicate
+
+
+
+### useful resources:
+
+- area inspiration by :
+
+https://youtu.be/KiqpX-gNIS4?t=2280
+
+
+- generate new variables on nested data: nest > map > unnest help by:
+
+https://stackoverflow.com/questions/46436107/how-to-add-calculated-columns-to-nested-data-frames-list-columns-using-purrr
+
+
+
+### not used but usefull for future: 
+
+- nest > map > unnest: help passing a not netsted variable to a nested column
+
+https://stackoverflow.com/questions/53642589/r-add-a-column-in-nested-data-sets
+
+- many models, purr, etc:
+
+https://www.kaggle.com/timib1203/managing-many-models-with-tidyr-purrr-and-broom/report
+
+
+
