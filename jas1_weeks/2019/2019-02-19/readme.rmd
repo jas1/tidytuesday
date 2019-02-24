@@ -1,0 +1,248 @@
+---
+title: "Tidy tuesday challenge: Week 2019-02-19  PhDs Awarded by Field"
+author: "julio"
+date: "24 de febrero de 2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-02-19 PhDs Awarded by Field
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to PhDs Awarded by Field
+
+### objectives:
+
+- other different challenge: a more technical stuff: do the stand alone shiny app using electron.
+
+## details:
+
+this week my personal challenge is different from the other DS challenges, this is more technical may be more DE challenge... 
+
+Some times making a dashboard do not have sense unless your public can use it, and some times the " default steps " are not enough. 
+
+thats why im trying to use this one; when you need your users to get a " usable dashboard" and cannot host on shinyapps, or an internal shiny server, or other internet shiny stuff.
+
+you need old school desktop app. using that implies that youll need the data inside the app. 
+( download the data and put it inside your app.)
+
+In this case i'll do the simple " embbed the data in the app " case. 
+Just to take in account: Some times you just cant do that, and you need to connect to a DB or the internet. In that cases you should evaluate connection permissions, firewalls, network acceses, proxies, proper urls , proper ports, and may be some other stuff; and all that specific stuff got a lot of complexities themselves.
+
+about the dashboard take a look at the tweet.
+A ton of this effort has been done by other people, you can check the resources at the end.
+
+I like hierarchical data its always awsome to visualize and play with it; ill use a guy shiny app of the week so i can really focus on the electron side of the thing.
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+# library(Rcpp) #; install.packages("Rcpp")
+library(skimr) #; install.packages("skimr")
+# library(circlepackeR) #; devtools::install_github("jeromefroe/circlepackeR")
+# library(data.tree)  #; install.packages("data.tree")
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+phd_file <- here::here("data","2019","2019-02-19","phd_by_field.csv")
+phd_raw <- readr::read_csv(phd_file)
+
+phd_processed <- phd_raw
+
+
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(phd_raw) 
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+skimr::skim(phd_raw) 
+
+
+```
+
+## tidy
+
+always wante to try circle pack, so there we go: prepare data: deprecated -- shifted to the shiny app of the guy as i wan to have a functional deployable that i can give other people.
+not just my pc.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(circlepackeR) #; devtools::install_github("jeromefroe/circlepackeR")
+# 
+# phd_processed <- phd_raw %>% filter(year==2008) %>% select(-year) %>%  
+#         mutate(path_string = paste("phds", broad_field, major_field, field, sep = "/"))
+# # sample: http://shiny.rstudio.com/gallery/submitbutton-demo.html
+# # UI
+# 
+# # library(data.tree)
+# # phd_processed_circler <- data.tree::as.Node(phd_processed)
+# 
+# 
+# phd_processed %>% count(field) %>%  filter(n>1)
+# 
+# phd_processed %>% filter(field=="Environmental toxicologyc")
+# 
+# circlepackeR::circlepackeR(phd_raw)
+# 
+# 
+# 
+# phd_processed2 <- phd_raw %>% filter(year==2008) %>% select(-year) %>% 
+#     mutate(from=) %>% mutate( to="")
+# 
+# 
+# # Libraries
+# library(ggraph)
+# library(igraph)
+# library(tidyverse)
+# library(viridis)
+#  
+# # We need a data frame giving a hierarchical structure. Let's consider the flare dataset:
+# edges=flare$edges
+# vertices = flare$vertices
+# mygraph <- graph_from_data_frame( edges, vertices=vertices )
+#  
+# # Control the size of each circle: (use the size column of the vertices data frame)
+# # png("~/Dropbox/R_GG/R_GRAPH/#314_custom_circle_packing1.png", height = 480, width=480)
+# ggraph(mygraph, layout = 'circlepack', weight="size") + 
+#   geom_node_circle() +
+#   theme_void()
+
+
+```
+
+## visualize
+
+as i want interactive for the shiny app im using package: circlepackeR: canceled.
+using the guy shiny app as ive made some stuff with that library before should not be complex.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(circlepackeR)
+# library(data.tree)
+# library(treemap)#;install.packages("treemap"); install.packages("httpuv"); install.packages("mime")
+# 
+# data(GNI2014)
+# head(GNI2014)
+# 
+# GNI2014$pathString <- paste("world", 
+#                             GNI2014$continent, 
+#                             GNI2014$country, 
+#                             sep = "/")
+# population <- as.Node(GNI2014)
+# 
+# circlepackeR(population, size = "population", color_min = "hsl(56,80%,80%)", 
+#              color_max = "hsl(341,30%,40%)")
+
+
+```
+
+
+## communicate
+
+
+### general view:
+
+started wanting to analize something simple like a circle pack , as it needed some preparation and wanted focus on the electron app , just switched to this twit app: https://twitter.com/theotheredgar/status/1097955862235279360
+
+that final app resulted on ~250MB directory, zipped with 7z , becomes: 182MB
+
+For practical reasons i wont be uploading the electron app result here, as its quite heavy.
+
+### summary: 
+
+you install git , you install nodejs ( that comes with npm), then you can make an electron app. 
+inside that thing you can embedd other aplications, like ... an R-portable; thats one reason of heavy MB.
+Then for your specific app, depending on the app " fanciness", you probably use several libraries.
+each library , use another bunch of MB. 
+
+and well the electron stuff itself.
+
+
+Reasons why you might want to do this: 
+
+https://www.youtube.com/watch?v=ARrbbviGvjc
+
+the other usefull video is: 
+https://www.youtube.com/embed/O56WR-yQFC0
+
+### full story:
+
+i suggest going the videos 1st, then start coding because you might lose a ton of time searching for stuff that is there. 
+
+Also the video its on old version of R, and old version of Electron. There are not much differencies. 
+I spend some time looking the new version empty app, vs the repo app, and looking at the structure of files.
+
+before trying the demo app, i installed all the packages needed for my app on the R-portable instance inside the electron application. ( like installing shiny and dependencies )
+
+the installation was not done through the " install.packages " but to unzipping the libraries on the R-portable library folder: "../R-Portable/App/R-Portable/library"
+for example the shiny folder will be: 
+
+"electron-quick-start/R-Portable/App/R-Portable/library/shiny"
+
+After i get a demo app going in electron, i switch to the twit app. 
+(demo app: https://shiny.rstudio.com/gallery/submitbutton-demo.html)
+
+
+1st, tryed as a simple shiny app app.r  ( changed the flex dashboard format, as i dont like it much.)
+after saw it working, put it on the electron application. 
+this can be seen on my repo as this week app.r
+
+then tryed to run the application as i've done with the demo app; i knew that it wont work as some dependencies might be miss , so some debugging dependencies was done in a really empirical way. 
+( run app > check error > go download the zip > install on the library of R-portable)
+
+worked on that till i have a really nasty problem with a library, that it wasnt found the "vI" 
+as seen that the problem was really ... "hairy" : https://community.rstudio.com/t/not-able-to-load-tidyverse-object-vi-not-found/10243/7
+
+I just stepped aside from that and made a little change, using data tables instead of Formatted table.
+after that life was easier and got my "more than basic" application running.
+
+now to the packaging.
+the specific line is on this video: https://www.youtube.com/embed/O56WR-yQFC0
+
+After a while got my "uber folder" whit ton of stuff and my dear "exe" ( doing this on windows )
+
+zipping the folder was next, 
+and finally , test the thing on other computer, as I had none near, used a virtual machine that do not have R installed nor nodejs.
+
+and it : worked like charm :D (check the screenshot :D 20190224_tidy_tuesday_electron_app.png )
+
+
+
+
+### to close ...:
+
+- heavy output ( big folder to giv to other ppl)
+- can be usefull on some circumstances
+- tech knowladge is definitly a plus here; will get you quicker to the places.
+- can contact on twitter or github issue if need help
+
+
+### useful resources:
+
+- https://twitter.com/theotheredgar/status/1097955862235279360
+- https://github.com/ksasso/useR_electron_meet_shiny
+- https://www.youtube.com/watch?v=ARrbbviGvjc
+- https://www.youtube.com/embed/O56WR-yQFC0
+- https://github.com/ksasso/Electron_ShinyApp_Deployment
+- https://sourceforge.net/projects/rportable/
