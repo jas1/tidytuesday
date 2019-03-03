@@ -22,12 +22,22 @@ df_for_graph <- small_trains %>%
     rename(from=departure_station) %>% 
     rename(to=arrival_station)
 
+
+color_palette <- c("blue","green","red")
 uniques_graph <- small_trains %>%    
-        rename(from=departure_station) %>%
-        rename(to=arrival_station) %>% 
-        count(from,to) %>% 
-        mutate(is_tgv=str_detect(from,"TGV")|str_detect(to,"TGV")) %>% 
-        mutate(color=if_else(is_tgv,'red','blue'))
+    rename(from=departure_station) %>%
+    rename(to=arrival_station) %>% 
+    group_by(from,to) %>% 
+    summarize(total_delay=sum(avg_delay_all_departing+avg_delay_all_arriving)) %>% 
+    # mutate(is_tgv=str_detect(from,"TGV")|str_detect(to,"TGV")) %>% 
+    # mutate(color=if_else(is_tgv,'red','blue')) %>%
+    mutate(intervals=if_else(total_delay<=2000,"0-2k",
+                             if_else(total_delay>4000,">4k","2k1-4k"))) %>% 
+    mutate(color=case_when (
+        total_delay<=2000 ~ color_palette[1],
+        total_delay>4000 ~ color_palette[3],
+        total_delay>2000 & total_delay<=4000 ~ color_palette[2]))
+
 
 # make directed graph
 trains_graph <- igraph::graph_from_data_frame(uniques_graph,directed = TRUE)
