@@ -1,0 +1,212 @@
+---
+title: "Tidy tuesday challenge: Week 2019-02-26 french train delays"
+author: "julio"
+date: "2019-03-03"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-02-26 french train delays
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to PhDs Awarded by Field
+
+### objectives:
+
+- issues on git syhcroing, switching to an interesting visualization and reproduce.
+- just went to a graph visualization. showing how are linked from/to , and if its tgv as color.
+
+## details:
+
+- selected small trains dataset
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+# library(Rcpp) #; install.packages("Rcpp")
+library(skimr) #; install.packages("skimr")
+# library(circlepackeR) #; devtools::install_github("jeromefroe/circlepackeR")
+# library(data.tree)  #; install.packages("data.tree")
+
+library(igraph)
+library(visNetwork)
+
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+small_trains <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-26/small_trains.csv") 
+
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(small_trains) 
+
+
+small_trains %>% 
+    count(service)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+skimr::skim(phd_raw) 
+
+
+```
+
+## tidy
+
+always wante to try circle pack, so there we go: prepare data: deprecated -- shifted to the shiny app of the guy as i wan to have a functional deployable that i can give other people.
+not just my pc.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(circlepackeR) #; devtools::install_github("jeromefroe/circlepackeR")
+# 
+# phd_processed <- phd_raw %>% filter(year==2008) %>% select(-year) %>%  
+#         mutate(path_string = paste("phds", broad_field, major_field, field, sep = "/"))
+# # sample: http://shiny.rstudio.com/gallery/submitbutton-demo.html
+# # UI
+# 
+# # library(data.tree)
+# # phd_processed_circler <- data.tree::as.Node(phd_processed)
+# 
+# 
+# phd_processed %>% count(field) %>%  filter(n>1)
+# 
+# phd_processed %>% filter(field=="Environmental toxicologyc")
+# 
+# circlepackeR::circlepackeR(phd_raw)
+# 
+# 
+# 
+# phd_processed2 <- phd_raw %>% filter(year==2008) %>% select(-year) %>% 
+#     mutate(from=) %>% mutate( to="")
+# 
+# 
+# # Libraries
+# library(ggraph)
+# library(igraph)
+# library(tidyverse)
+# library(viridis)
+#  
+# # We need a data frame giving a hierarchical structure. Let's consider the flare dataset:
+# edges=flare$edges
+# vertices = flare$vertices
+# mygraph <- graph_from_data_frame( edges, vertices=vertices )
+#  
+# # Control the size of each circle: (use the size column of the vertices data frame)
+# # png("~/Dropbox/R_GG/R_GRAPH/#314_custom_circle_packing1.png", height = 480, width=480)
+# ggraph(mygraph, layout = 'circlepack', weight="size") + 
+#   geom_node_circle() +
+#   theme_void()
+
+
+```
+
+## visualize
+
+as i want interactive for the shiny app im using package: circlepackeR: canceled.
+using the guy shiny app as ive made some stuff with that library before should not be complex.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(circlepackeR)
+# library(data.tree)
+# library(treemap)#;install.packages("treemap"); install.packages("httpuv"); install.packages("mime")
+# 
+# data(GNI2014)
+# head(GNI2014)
+# 
+# GNI2014$pathString <- paste("world", 
+#                             GNI2014$continent, 
+#                             GNI2014$country, 
+#                             sep = "/")
+# population <- as.Node(GNI2014)
+# 
+# circlepackeR(population, size = "population", color_min = "hsl(56,80%,80%)", 
+#              color_max = "hsl(341,30%,40%)")
+
+
+```
+
+
+## communicate
+
+### general view:
+
+#### issues with git 
+
+remeber any step on command line, you previous gotta be on the repository folder. 
+like: 'cd /user/me/git/tidytuesday'
+
+got issues with git syncrho. 
+generally use windows desktop , now on linux notebook
+i got the repo on dropbox folder. so config of windows its shared on dropbox and autosynchroed.
+that causes issues as both computers got different context. 
+
+- on windows got the  autocrlf, to true. 
+
+so when i downloaded from github, it transformed the lf, to crlf > making the linux version see 'differences' just when i downloaded the repo.
+
+to solve this i've set it to false:
+
+git config --global core.autocrlf false
+
+- issues on this computer sychro, on windows i use notepad++ , it wont work right on linux, so as alternative i use atom. 
+
+nevertheless, it is not so happy when using terminal, at least on my experience at setting it as default editor. 
+after commiting and filling the message on the editor, and closing it ( file & atom ) , the terminal keeps saying waiting to close ... 
+
+i used this command to set atom as default:
+
+git config --global core.editor "atom --wait"
+
+i used this one to fall back to default editor on my notebook 
+( my default is pluma, you gotta search which is the name of your default editor. )
+
+git config --global core.editor "pluma"
+
+
+as i already was in the problem, of getting commited or undone things ... 
+i just fall back to previous commit that ive done. 
+
+to know which was i looked at: 
+
+git log
+
+and see the log searching for the commit that i was the last to submit.
+then when i see: 
+Merge: 75253ed 354de7b
+
+the id to reset its the 1st part '75253ed'
+
+WARNING: THIS WILL DROP WHATEVER YOU HAVE DONE AFTER THAT POINT !
+
+if you decide to move further, to do the reset all you need to go is: 
+
+git reset --hard 75253ed3
+
+Then after that i resinchroed to the current week data, uploads like: 
+
+git pull https://github.com/rfordatascience/tidytuesday.git master
+
+it was quite time consuming to debug this, so ill just go for one interesing visualization and try to reproduce.
+
+
