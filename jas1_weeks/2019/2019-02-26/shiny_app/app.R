@@ -64,6 +64,7 @@ ui <- dashboardPage(header, sidebar, body)
 # SERVER ------------------------------------------------------------------
 server <- function(input, output,session) {
     reactive_network <- reactive({
+        set.seed(12345)
         visNetwork:::visIgraph(trains_graph) %>% 
             visNetwork:::visOptions(  selectedBy= list(variable = "label"), # esto hace aparecer combos en la red.
                                       highlightNearest = list(enabled = TRUE, hover = TRUE))
