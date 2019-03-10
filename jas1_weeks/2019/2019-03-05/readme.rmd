@@ -51,20 +51,20 @@ library(forcats)
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 jobs_gender <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-05/jobs_gender.csv")
-earnings_female <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-05/earnings_female.csv") 
-employed_gender <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-05/employed_gender.csv") 
+# earnings_female <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-05/earnings_female.csv") 
+# employed_gender <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-05/employed_gender.csv") 
 
 head(jobs_gender)
 glimpse(jobs_gender)
 skimr::skim(jobs_gender)
 
-head(earnings_female)
-glimpse(earnings_female)
-skimr::skim(earnings_female)
-
-head(employed_gender)
-glimpse(employed_gender)
-skimr::skim(employed_gender)
+# head(earnings_female)
+# glimpse(earnings_female)
+# skimr::skim(earnings_female)
+# 
+# head(employed_gender)
+# glimpse(employed_gender)
+# skimr::skim(employed_gender)
 
 ```
 
@@ -313,11 +313,13 @@ ggplot(aes( y=minor_category, x=workers_percent,
     # Change Subtitle Font and add some margin
     plot.subtitle = element_text(face = "italic", size = 12,
                                  margin = margin(b = 0.5, unit = "cm"))
-  ) 
+  ) +
+    ggsave(file=here::here("jas1_weeks","2019","2019-03-05","after-ggsave.png"),
+           type="cairo",device="png")
 
 # here::here("jas1_weeks","2019","2019-03-05","after.png")
-png(here::here("jas1_weeks","2019","2019-03-05","after.png"), height = 600,width = 700) 
-p 
+# png(here::here("jas1_weeks","2019","2019-03-05","after.png"), height = 600,width = 700) 
+# p 
 ```
 
 
