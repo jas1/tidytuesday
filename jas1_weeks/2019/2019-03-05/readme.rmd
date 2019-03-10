@@ -1,0 +1,341 @@
+---
+title: "Tidy tuesday challenge: Week 2019-03-05 Women in the Workforce"
+author: "julio"
+date: "10-03-2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-03-05 Women in the Workforce
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to Women in the Workforce
+
+### objectives:
+
+- just to do something similar to https://ogustavo.com/post/dotplot-ggplot/
+as i never done one before :P. 
+
+
+## details:
+
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(forcats)
+
+
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+jobs_gender <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-05/jobs_gender.csv")
+earnings_female <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-05/earnings_female.csv") 
+employed_gender <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-05/employed_gender.csv") 
+
+head(jobs_gender)
+glimpse(jobs_gender)
+skimr::skim(jobs_gender)
+
+head(earnings_female)
+glimpse(earnings_female)
+skimr::skim(earnings_female)
+
+head(employed_gender)
+glimpse(employed_gender)
+skimr::skim(employed_gender)
+
+```
+
+after peeking the 3 datasets, i'll go for jobs_gender.
+
+### jobs_gender
+
+looking at how can i subset the data to get this working: 
+pointing to minor categories. 
+
+then a year
+then male / female
+then the difference, 
+
+## tidy
+
+lets make the data so i can make the plot
+
+- category + value 1 and value 2
+
+category = minor categories
+value 1= workers_female
+value 2= workers_male
+year = to have the time dimension.
+
+as they dont have missings. 
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+jobs_gender_processed <- jobs_gender %>% 
+    group_by(year,minor_category) %>%  # group
+    summarise(workers_female_total = sum(workers_female),
+              workers_male_total = sum(workers_male),
+              workers_total_total = sum(total_workers)) %>%  # sumarize
+    mutate(diff=workers_male_total-workers_female_total) %>% # diff
+    mutate(percent_female=workers_female_total/workers_total_total) %>% # get percents
+    mutate(percent_male=workers_male_total/workers_total_total) %>%
+    mutate(perc_diff=percent_male-percent_female) 
+    
+# may be filter year and sort by difference
+
+jobs_gender_processed_gather <- jobs_gender_processed %>%  
+    filter(year==2016) %>% ungroup() %>% 
+    select(minor_category,percent_male,percent_female,perc_diff) %>% 
+    rename(male_workers=percent_male,female_workers=percent_female) %>% 
+    gather(
+    key = gender,
+    value = workers_percent,
+    male_workers, 
+    female_workers
+  ) %>% 
+    select(minor_category,gender,workers_percent,perc_diff)
+    
+jobs_gender_processed_gather_2 <- jobs_gender_processed_gather %>% 
+    mutate(minor_category=forcats::fct_reorder(minor_category,perc_diff))    
+
+lev <- levels(jobs_gender_processed_gather_2$minor_category)
+first_entry <- lev[length(lev)]
+
+
+
+```
+
+## visualize
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+col_orange <- "#FF856B"
+col_orange_text <- "#F0B9AD"
+
+col_green_text <- "#16BFB1"
+col_green <- "#3196C1"
+col_background_diff <- "#F5EBCB"
+col_gray <- "#bbbbbb"
+col_dark_gray <- "#333333"
+col_light_gray <- "#f4f4f4"
+nudge_y_titles <- 0.6
+font_size_titles <- 3
+# percent_nudge_x <- 0.03
+percent_nudge_x <- 0
+percent_nudge_y <- -0.5
+title_plot <- "Difference between genders by\namount of workers in\nminor working category"
+
+p <- jobs_gender_processed_gather_2 %>% 
+ggplot(aes( y=minor_category, x=workers_percent, 
+    color = ifelse(perc_diff == 0, "zero", gender))) + 
+  # Plot lines between points, by Country
+  geom_line(mapping = aes(group = minor_category),color = col_gray,size = 1.5) +
+  geom_point( size=3, pch = 19 ) + # dot type. Important to be number 19, otherwise we cannot plot the dots with the colors for different groups
+  # Add % for each point
+  geom_text( size = 3, colour = col_dark_gray,
+             nudge_x = percent_nudge_x,
+             nudge_y = percent_nudge_y,
+             # colour = ifelse(perc_diff > 0,
+             #                                            col_green_text,
+             #                                            ifelse(perc_diff < 0,
+             #                                                   col_orange_text,
+             #                                                   "#333333")),
+    mapping = 
+      aes(
+        label = 
+          # If country is (the first one), plot numbers with %
+          ifelse(minor_category == first_entry,
+                 # Value_if_True:
+                 paste0(as.character(round(workers_percent*100,0)),"%"),
+                 # Value_if_False
+                 paste0(as.character(round(workers_percent*100,0)))
+                 )
+        #,color = ifelse(perc_diff == 0, "zero", gender)
+      )
+  ) + 
+  # Add "Legend" above (the first one)
+  geom_text(
+    # Font size
+    size = font_size_titles, fontface = "bold", nudge_y = nudge_y_titles,
+    mapping = 
+      aes(label = 
+          # If it is first_entry, plot legend
+          ifelse(minor_category == first_entry,
+                 # Value_if_True:
+                 ifelse(gender == "male_workers",
+                        # Value_if_True:
+                        "Male",
+                        # Value_if_False:
+                        "Female"
+                        ),
+                 # Value_if_False
+                 ""
+          ),
+        color = ifelse(perc_diff == 0, "zero", gender)
+      )
+  ) +
+  # Change dot colors
+  scale_color_manual(values = c(col_orange, col_green, col_gray)) +
+  # Change scale x axis
+  scale_x_continuous(
+    # Set limits to 0 and 1.2 (we won't set it to 1 because we neeed some space
+    # after 1 to place the values of the differences)
+    limits = c(0,1.2),
+    # Show tick marks at every 25%
+    breaks = seq(0,1,.25),
+    # Change scale to percent
+    labels = scales::percent
+  ) +
+  # Expand y axis scale so that the legend can fit
+  scale_y_discrete(expand = expand_scale(add=c(0.65,1))) +
+  # Add white rectangle to set the area where the values of the differences will
+  # be
+  geom_rect( mapping = aes(xmin = 1.01, xmax = Inf , ymin = -Inf, ymax = Inf),
+             fill = "white",
+             color = "white") +
+  # Add rectangle with correct banground color for the differences
+  geom_rect( mapping = aes(xmin = 1.05, xmax = 1.15 , ymin = -Inf, ymax = Inf),
+    fill = col_background_diff,
+    color = col_background_diff ) +
+  # Add Differences values
+  geom_text(
+    fontface = "bold",size = 4, colour = "black",
+    mapping = 
+      aes(
+        x = 1.1,
+        y = minor_category,
+        label = 
+          # To avoid duplicate values, plot empty text for the first group and
+          # plot the difference only for the Ages_18_34 group.
+          ifelse(gender == "male_workers",
+                 # Value_if_True
+                 "",
+                 #Value_if_False
+                 # If the difference is equal to zero, do not put any signal. 
+                 # Otherwise, if Positive, put the + sign on the front.
+                 ifelse(perc_diff == 0,
+                        # Value_if_True:
+                        paste0(as.character(round(perc_diff*100,0))),
+                        # Value_if_False
+                        ifelse(perc_diff > 0, 
+                               # Value_if_True
+                               paste0("+",as.character(round(perc_diff*100,0))),
+                               # Value_if_False
+                               paste0(as.character(round(perc_diff*100,0)))
+                        )
+                 )
+              )
+      )
+  ) +
+  # Insert Title of Differences
+  geom_text(
+    # Bold face
+    fontface = "bold",
+    # Font size
+    size = font_size_titles,
+    # Cor
+    colour = col_dark_gray,
+    # Set text a little above the dots
+    nudge_y = nudge_y_titles,
+    # Position
+    mapping = 
+      aes(
+        x = 1.1,
+        y = minor_category,
+        label = 
+          # If its 1st entry, plot values
+          ifelse(minor_category == first_entry,
+                 # Value_if_True
+                 "Diff",
+                 #Value_if_False
+                 ""
+          )
+      )
+  ) +
+  # Plot Title and Axis Labels
+  labs(
+    title = title_plot,
+    subtitle = "USA data on 2016",
+    caption = "#tiydtuesday 2019-03-05",
+    x = "", y = "" ) +
+  # Change background, General font size, and other things
+  theme(
+    # Change font color and text for all text outside geom_text
+    text = element_text(color = "#4e4d47", size = 10),
+    
+    # Country names in bold face
+    # axis.text.y = element_text(face = "bold"),
+    
+    # Add space between x axis text and plot 
+    axis.text.x = element_text(vjust = -0.75),
+    
+    # Do not show tick marks
+    axis.ticks = element_blank(),
+    
+    # Delete original legend (keep only the one we created)
+    legend.position = "none",
+    
+    # White background
+    panel.background = element_blank(),
+    
+    # Country (y Axis) Lines
+    panel.grid.major.y = element_line(colour = col_light_gray, size = 1),
+    
+    # Change Title Font
+    plot.title = element_text(face = "bold", size = 16),
+    
+    # Change Subtitle Font and add some margin
+    plot.subtitle = element_text(face = "italic", size = 12,
+                                 margin = margin(b = 0.5, unit = "cm"))
+  ) 
+
+# here::here("jas1_weeks","2019","2019-03-05","after.png")
+png(here::here("jas1_weeks","2019","2019-03-05","after.png"), height = 600,width = 700) 
+p 
+```
+
+
+## communicate
+
+
+### general view:
+
+
+### summary: 
+
+### full story:
+
+
+### to close ...:
+
+
+### useful resources:
+
+- https://twitter.com/frizzyroselle/status/1104042846645043200
+- https://ogustavo.com/post/dotplot-ggplot/
