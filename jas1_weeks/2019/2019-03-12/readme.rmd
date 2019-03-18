@@ -135,7 +135,7 @@ boards_processed %>%
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 
 font_selected <- "Roboto"
-col_brew_selected <-  "Accent" # RColorBrewer::display.brewer.all()
+col_brew_selected <-  "Set3" # RColorBrewer::display.brewer.all()
 boards_processed %>%
     ggplot(aes(x=year_published,y=average_rating,colour=as.factor(decade))) +
     geom_point()+
@@ -197,6 +197,7 @@ board_categories %>%
     #     axis.text.y = element_text( hjust = 1,size = rel(0.5))
     # )+
     coord_flip()+
+    scale_fill_brewer(palette = col_brew_selected, direction = 1) +
     labs(title = "Board game categories by decade",
          subtitle="filtered NA & N < 10",
          caption = "#tidytuesday 2019-03-12 ",
