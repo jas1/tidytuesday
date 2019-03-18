@@ -1,0 +1,300 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-03-12 board games data"
+author: "julio"
+date: "16 de febrero de 2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-03-12 board games data
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to 2019-03-12 board games data
+
+### objectives:
+
+- ggforce voronoi stuff, and try to make it usefull :p 
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(forcats)#install.packages('forcats')
+library(lubridate)
+# library(visdat)#install.packages('visdat')
+library(stringr)
+# library(naniar)
+# library(rpart)
+# library(rpart.plot)
+library(cowplot)
+# library(rstan) # install.packages("rstan")
+# library(prophet)# install.packages("prophet")
+# library(ggrepel)
+library(ggforce)# install.packages("ggforce")
+# devtools::install_github("9thcirclegames/bgg-analysis")
+library(bggAnalysis) # install.packages("bggAnalysis") 
+```
+
+
+# first test the existent default example
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# voronoi
+ggplot(iris, aes(Sepal.Length, Sepal.Width)) + 
+  geom_voronoi_tile(aes(fill = Species, group = -1L), max.radius = 1,
+                    colour = 'black', expand = unit(-0.5, 'mm'), 
+                    radius = unit(0.5, 'mm'), show.legend = FALSE)
+
+
+# parallel sets
+
+titanic <- reshape2::melt(Titanic)
+# This is how we usually envision data for parallel sets
+# head(titanic)
+titanic <- gather_set_data(titanic, 1:4)
+# head(titanic)
+ggplot(titanic, aes(x, id = id, split = y, value = value)) +
+  geom_parallel_sets(aes(fill = Sex), alpha = 0.3, axis.width = 0.1) +
+  geom_parallel_sets_axes(axis.width = 0.1) +
+  geom_parallel_sets_labels(colour = 'white')
+
+```
+
+# think about current week data and put it there
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+data(BoardGames)
+head(BoardGames)
+
+bg_processed <- BoardGames %>% janitor::clean_names()
+glimpse(bg_processed)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# ok ... lets go for the shor tversion: 
+
+board_games <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-12/board_games.csv")
+glimpse(board_games)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+boards_processed <- board_games %>% 
+    mutate(decade= floor(year_published / 10)*10) 
+
+
+board_categories <- boards_processed %>% 
+    select(category,decade,year_published,game_id) %>% 
+    separate_rows(category,sep = ",") 
+
+
+board_mechanics <- boards_processed %>% 
+    separate_rows(mechanic,sep = ",") %>% 
+    count(decade,mechanic,sort = TRUE)
+
+boards_processed %>% count(decade,sort = TRUE)
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+boards_processed %>% 
+    count(category,sort = TRUE) %>% 
+    filter(str_detect(str_to_lower(category),"war"))
+
+```
+
+# visualization
+
+## avg rating by decade
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+font_selected <- "Roboto"
+col_brew_selected <-  "Accent" # RColorBrewer::display.brewer.all()
+boards_processed %>%
+    ggplot(aes(x=year_published,y=average_rating,colour=as.factor(decade))) +
+    geom_point()+
+    scale_y_continuous(limits = c(1,10), breaks = seq(1,10,by = 1)) +
+    scale_x_continuous(breaks = c(seq(1950,2010, by = 10))) + 
+        labs(title= "Average game rating by decade",
+         x="Year published",
+         y="Avg. rating",
+         color="Decade") +
+    theme_dark()+
+    # scale_color_brewer(palette = col_brew_selected, direction = -1) +
+    scale_color_brewer(palette = col_brew_selected, direction = 1) +
+    theme(
+    text = element_text(family = font_selected, color = "gray90"),
+    legend.position = "bottom",
+    plot.background = element_rect(fill = "gray30"),
+    legend.background = element_rect(fill = "gray30"), 
+    plot.title = element_text(size = 20,face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.text = element_text(family = font_selected, color = "gray90"),
+    axis.title = element_text(family = font_selected, color = "gray90", face = "bold"),
+    panel.grid.minor.y = element_blank(), 
+    panel.grid.major.y = element_line(size =0.1),
+    panel.grid.major.x = element_line(size =0.1),
+    panel.grid.minor.x = element_blank()
+    )+
+      guides(
+    color = guide_legend(
+      title = "Decade",
+      title.position = "top",
+      title.hjust = 0.5,
+      nrow = 1,
+      label.position = "bottom",
+      override.aes =list(alpha = 1,size = 4))
+)+
+    ggsave(filename=here::here("jas1_weeks","2019","2019-03-12","harro_exp.png"))
+
+
+    
+
+```
+
+## game categoriew by decade
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+
+board_categories %>%
+    count(decade,category) %>% 
+    filter(n>10) %>% 
+    filter(!is.na(category)) %>% 
+    mutate(category=fct_reorder(category,n)) %>% 
+    ggplot(aes(x=category ,y=n,fill=as.factor(decade))) +
+    geom_col()+
+    # theme(
+    #     # legend.position = "none",
+    #     # text = element_text(size = rel(0.2)),
+    #     axis.text.y = element_text( hjust = 1,size = rel(0.5))
+    # )+
+    coord_flip()+
+    labs(title = "Board game categories by decade",
+         subtitle="filtered NA & N < 10",
+         caption = "#tidytuesday 2019-03-12 ",
+         x="",
+         y="# category/decade",
+         fill="Decade")+
+    theme_dark()+
+    # scale_color_brewer(palette = col_brew_selected, direction = -1) +
+    scale_color_brewer(palette = col_brew_selected, direction = 1) +
+    theme(
+    text = element_text(family = font_selected, color = "gray90"),
+    # legend.position = "bottom",
+    plot.background = element_rect(fill = "gray30"),
+    legend.background = element_rect(fill = "gray30"), 
+    plot.title = element_text(size = 20,face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.text = element_text(family = font_selected, color = "gray90"),
+    axis.text.y = element_text(family = font_selected, color = "gray90",size = rel(0.5)),
+    axis.title = element_text(family = font_selected, color = "gray90", face = "bold"),
+    panel.grid.minor.y = element_blank(), 
+    panel.grid.major.y = element_line(size =0.1),
+    panel.grid.major.x = element_line(size =0.1),
+    panel.grid.minor.x = element_blank()
+    ) +
+    ggsave(filename=here::here("jas1_weeks","2019","2019-03-12","category_decade_exp.png"))
+
+```
+
+
+## paralell set (~sankey)
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+boards_for_parallel_set <- board_games %>% 
+    mutate(decade= floor(year_published / 10)*10) %>% 
+    select(category,decade,game_id,mechanic) %>% 
+    separate_rows(category,sep = ",") %>% 
+    separate_rows(mechanic,sep = ",") %>% 
+    count(decade,category,mechanic,sort = TRUE) %>% 
+    nest(-decade) %>% 
+    mutate(top_10=purrr:::map(.x=data,function(x){
+        # print(head(x))
+        res <- data %>% head(10) # %>% select(category,n)
+        unlist(res)
+    })) %>% unnest(top_10)
+
+boards_for_parallel_set_plot <- gather_set_data(boards_for_parallel_set, 1:3)
+
+boards_for_parallel_set_plot_2 <- boards_for_parallel_set_plot %>% 
+    nest(-decade) %>% 
+    mutate(top_10=purrr:::map(.x=data,function(x){
+        print(head(x))
+        
+        data %>% unlist() %>% head(10) %>% select(category,n)
+    })) %>% unnest(top_10)
+    
+  boards_for_parallel_set_plot_2 %>% 
+  ggplot(aes(x, id = id, split = y, value = n)) +
+  geom_parallel_sets(aes(fill = category), alpha = 0.3, axis.width = 0.1) +
+  geom_parallel_sets_axes(axis.width = 0.1) +
+  geom_parallel_sets_labels(colour = 'white') +
+  theme(legend.position = "none")
+```
+
+
+# voronoi
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+board_games_voro <-  board_games %>% 
+    mutate(decade= as.factor(floor(year_published / 10)*10)) #%>% 
+    # head(board_games_voro)
+```
+ 
+```{r echo=FALSE,message=FALSE,warning=FALSE}   
+
+ggplot(board_games_voro, aes(average_rating, users_rated)) +
+    geom_point(aes(fill = decade),shape=21) 
+
+board_games_voro %>% 
+    filter(users_rated>300 & users_rated<1000) #%>% 
+    # count()
+
+ggplot( aes(decade, users_rated)) +
+    geom_boxplot()
+
+ggplot(board_games_voro, aes(decade, users_rated)) +
+    # geom_boxplot()
+    geom_line()
+
+board_games_voro %>% 
+    # filter(users_rated>300 & users_rated<1000) %>% 
+    head(50) %>% 
+ggplot(aes(average_rating, users_rated)) +
+    # geom_point(aes(fill = decade),shape=21)
+  geom_voronoi_tile(aes(fill = decade, group = -1L), max.radius = 1,
+                    colour = 'black', expand = unit(-0.5, 'mm'), 
+                    radius = unit(0.5, 'mm'), show.legend = FALSE)
+```
+
