@@ -1,0 +1,231 @@
+---
+title: "Tidy tuesday challenge: Week 2019-03-19 The Stanford Open Policing Project"
+author: "julio"
+date: "24-03-2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-03-19 The Stanford Open Policing Project
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to The Stanford Open Policing Project
+
+### objectives:
+
+not clear, lets explore data and some stuff...
+
+## details:
+
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(forcats)
+library(usmap)#;install.packages('usmap') # https://cran.r-project.org/web/packages/usmap/vignettes/mapping.html
+
+
+# library(tidyverse)
+library(ggimage)#; install.packages('ggimage') 
+library(sf)#; install.packages('ggimage') 
+
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+combined_data <- readr::read_csv("https://raw.githubusercontent.com/5harad/openpolicing/master/results/data_for_figures/combined_data.csv")
+
+head(combined_data)
+glimpse(combined_data)
+skimr::skim(combined_data)
+
+# head(earnings_female)
+# glimpse(earnings_female)
+# skimr::skim(earnings_female)
+ 
+# head(employed_gender)
+# glimpse(employed_gender)
+# skimr::skim(employed_gender)
+```
+
+after taking a look at the dataset, ill choose the non missing columns to work.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+combined_data <- readr::read_csv("https://raw.githubusercontent.com/5harad/openpolicing/master/results/data_for_figures/combined_data.csv")
+
+combined_processed <- combined_data %>% select(driver_race,location,state,stops_per_year)
+
+combined_processed_by_state <- combined_processed %>% 
+    group_by(driver_race,state) %>% 
+    summarise(state_stops_per_year = sum(stops_per_year),
+              avg_state_stops_year = mean(stops_per_year),
+              min_state_stops_year = min(stops_per_year),
+              max_state_stops_year = max(stops_per_year),
+              median_state_stops_year = median(stops_per_year),
+              iqr_state_stops_year = max(stops_per_year))
+# library(devtools)
+# library(treemapify) # install_github("wilkox/treemapify")
+# library(ggplotify) # install.packages('ggplotify')
+
+# if(!require(treemapify)){install_github("wilkox/treemapify")}
+# treemap_coords <- treemapify(combined_processed_by_state,
+#                              area="state_stops_per_year", 
+#                              fill="HDI", 
+#                              label="driver_race", 
+#                              group="state")
+# head(treemap_coords)
+
+# library
+library(treemap)#; install.packages("treemap")
+library(d3treeR)#;install.packages("d3treeR")
+# Build Dataset
+# group=c(rep("group-1",4),rep("group-2",2),rep("group-3",3))
+# subgroup=paste("subgroup" , c(1,2,3,4,1,2,1,2,3), sep="-")
+# value=c(13,5,22,12,11,7,3,1,23)
+# data=data.frame(group,subgroup,value)
+
+# treemap
+treemap(combined_processed_by_state,
+            index=c("state","driver_race"),
+            vSize="state_stops_per_year",
+            type="index")
+
++
+    labs(title="Stops per year by State and Driver race")
+
+# make it interactive ("rootname" becomes the title of the plot):
+# inter=
+    # d3tree2( tree_map ,  rootname = "General" )
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# 
+# plot_usmap(data = combined_processed_by_state, 
+#            values = "state_stops_per_year", 
+#            lines = "red") + 
+#   scale_fill_continuous( low = "white", high = "red", name = "Stops per year", label = scales::comma ) +
+#   theme(legend.position = "right")
+# 
+# 
+# combined_processed_by_county <- combined_processed %>% 
+#     mutate(state_location=paste0(state,'_',location)) %>% 
+#     group_by(state_location) %>% 
+#     summarise(state_stops_per_year = sum(stops_per_year),
+#               avg_state_stops_year = mean(stops_per_year),
+#               min_state_stops_year = min(stops_per_year),
+#               max_state_stops_year = max(stops_per_year),
+#               median_state_stops_year = median(stops_per_year),
+#               iqr_state_stops_year = max(stops_per_year))
+# 
+# # plot_usmap(data = combined_processed_by_county, 
+# #            values = "state_stops_per_year", 
+# #            lines = "black",regions = "counties") + 
+# #   scale_fill_continuous( low = "white", high = "red", 
+# #                          name = "Stops per year", 
+# #                          label = scales::comma ) +
+# #   theme(legend.position = "right")
+# 
+# 
+# 
+# 
+# combined_processed_by_county %>% 
+#     mutate(location = fct_reorder(location,state_stops_per_year)) %>% 
+#     arrange(desc(state_stops_per_year)) %>% 
+#     head(20) %>% 
+#     ggplot(aes(x=location,
+#                y=state_stops_per_year,
+#                fill=state_stops_per_year)) +
+#     geom_col() +
+#     coord_flip()
+# 
+# combined_processed_by_county %>% 
+#     ungroup() %>% 
+#     mutate(state=fct_reorder(state,avg_state_stops_year)) %>% 
+#     mutate(location = fct_reorder(location,avg_state_stops_year)) %>% 
+#     arrange(desc(avg_state_stops_year)) %>% 
+#     head(20) %>% 
+#   ggplot(aes(x=location,
+#                y=avg_state_stops_year,
+#                fill=avg_state_stops_year)) +
+#     geom_col() +
+#     coord_flip()
+
+```
+
+### selected columns
+
+looking at the columns can spot , race, location, state, and stopes per year. 
+well lets, do a cloroplet with the new ggplot stuff.
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# combined_data <- readr::read_csv("https://raw.githubusercontent.com/5harad/openpolicing/master/results/data_for_figures/combined_data.csv")
+# 
+# combined_processed <- combined_data %>% select(driver_race,location,state,stops_per_year)
+# 
+# 
+# combined_processed %>% 
+# 
+# 
+# # head(earnings_female)
+# # glimpse(earnings_female)
+# # skimr::skim(earnings_female)
+#  
+# # head(employed_gender)
+# # glimpse(employed_gender)
+# # skimr::skim(employed_gender)
+# 
+# # combined_processed_2 <- combined_processed %>% 
+# #     gather_set_data(1:4)
+# # head(titanic)
+# # 
+# # 
+# # ggplot(combined_processed, aes(x, id = id, split = y, value = value)) +
+# #   geom_parallel_sets(aes(fill = Sex), alpha = 0.3, axis.width = 0.1) 
+# 
+
+
+```
+
+
+
+## communicate
+
+
+### general view:
+
+
+### summary: 
+
+### full story:
+
+
+### to close ...:
+
+
+### useful resources:
+
+- https://twitter.com/frizzyroselle/status/1104042846645043200
+- https://ogustavo.com/post/dotplot-ggplot/

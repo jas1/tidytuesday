@@ -1,0 +1,160 @@
+---
+title: "Tidy tuesday challenge: Week 2019-03-26 Seattle Pet Names"
+author: "julio"
+date: "30-03-2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-03-26 Seattle Pet Names
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to Seattle Pet Names
+https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-03-26
+
+### objectives:
+
+- make the animation of more populars by year.
+
+
+## details:
+
+
+## import data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(forcats)
+library(lubridate)
+library(gganimate)
+
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+seattle_pets <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-26/seattle_pets.csv") %>%     filter(!is.na(animals_name)) %>% 
+    mutate(license_issue_date = lubridate::mdy(license_issue_date)) %>% 
+    mutate(license_year = lubridate::year(license_issue_date)) #%>% 
+
+utils::head(seattle_pets)
+dplyr::glimpse(seattle_pets)
+skimr::skim(seattle_pets)
+
+```
+
+after peekign the data i'll go for the not missing values
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# filtered_for_plot <- seattle_pets %>% 
+# 
+#     
+#     # count(animals_name,license_year,sort = TRUE) #%>% filter(n>50)
+# 
+# tmp <- filtered_for_plot %>% 
+#     nest(-license_year) %>% 
+#     mutate(top_20_yr = purrr::map(data,.f=function(data_x){
+#         data_x %>% count(animals_name,sort = TRUE) %>% arrange(desc(n)) 
+#     })) %>% 
+#     mutate(plot_yr = purrr::map(top_20_yr,.f=function(data_x,yr=license_year){
+#         data_x %>% 
+#             ggplot(aes(x=animals_name,y=n,fill=animals_name)) +
+#             geom_col()+
+#             coord_flip()+
+#             labs(title= paste0('Top 20 names in',yr))
+#     }))
+#     # head(20) %>% 
+#     mutate(animals_name=forcats::fct_reorder(animals_name,n)) %>% 
+# 
+# 
+#     # tmp[1,]$top_20_yr[[1]] %>% count(animals_name) %>% filter(n>1)
+#     tmp[2,]$plot_yr[[1]]
+    
+    
+    # seattle_pets %>% 
+    #     filter(!is.na(animals_name)) %>% 
+    #     count(species,animals_name) %>% 
+    #     group_by(species,animals_name) %>%
+    #     top_n(n = 5, wt = n) %>% 
+    #     arrange(species)
+# asd <-  seattle_pets %>%
+#         count(species,animals_name,sort = TRUE) %>% 
+#         arrange(species) %>% 
+#         group_by(species) %>% 
+#         slice(1:5 )
+
+# asd %>% 
+#     ungroup() %>% 
+#     mutate(animals_name=fct_reorder(animals_name,n)) %>% 
+#     mutate(species=fct_reorder(species,n)) %>% 
+#     ggplot(aes(x=animals_name,y=species,fill=species,label=n)) +
+#     geom_tile()+
+#     geom_text()+
+#     coord_flip()+
+#     labs(title="Top 5 names by Species", x = "",y="",
+#          subtitle="in registered data",
+#          caption = "Tidytuesday 2019-03-26: Seattle Pet Names ")+
+#     theme_minimal()+
+#     theme(legend.position = "none")
+
+
+asd_yearly <-  seattle_pets %>%
+        count(license_year,species,animals_name,sort = TRUE) %>% 
+        arrange(license_year,species) %>% 
+        group_by(license_year,species) %>% 
+        slice(1:5 )
+
+
+# seattle_pets %>% filter(license_year==2014)
+
+plot_yearly <- asd_yearly %>% 
+    filter(license_year>=2014) %>% 
+    ungroup() %>% 
+    mutate(animals_name=fct_reorder(animals_name,n)) %>% 
+    mutate(species=fct_reorder(species,n)) %>% 
+    ggplot(aes(x=animals_name,y=species,fill=species,label=as.factor(n))) +
+    geom_tile()+
+    geom_text()+
+    coord_flip()+
+    labs(title="Top 5 names by Species by year", x = "",y="",
+         subtitle="in registered data {closest_state}",
+         caption = "Tidytuesday 2019-03-26: Seattle Pet Names ")+
+    theme_minimal()+
+    theme(legend.position = "none")+
+    transition_states(license_year,
+                    transition_length = 1,
+                    state_length =8)
+
+
+```
+
+
+
+## communicate
+
+
+### general view:
+
+
+### summary: 
+
+wanted to do the bar race, but mutated into tile map animation. to see  if got shared names across species.
