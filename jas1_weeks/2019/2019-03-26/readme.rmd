@@ -144,6 +144,8 @@ plot_yearly <- asd_yearly %>%
                     transition_length = 1,
                     state_length =8)
 
+plot_yearly
+
 
 ```
 
