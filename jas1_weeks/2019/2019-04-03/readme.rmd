@@ -1,0 +1,265 @@
+---
+title: "Tidy tuesday challenge: Week 2019-04-02 Seattle bikes"
+author: "julio"
+date: "02-04-2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-04-03 Seattle bikes
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to Seattle bikes
+https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-04-02
+
+### objectives:
+
+- replicate @drob's faceted  day/trails plot
+- may be something else
+
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(scales)
+library(forcats)
+library(lubridate)
+library(gganimate)
+library(animation)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# bike_traffic_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-04-02/bike_traffic.csv")
+# getting local as its large file.
+bike_traffic_raw <- readr::read_csv(here::here("data","2019","2019-04-02","bike_traffic.csv"))
+
+# utils::head(bike_traffic_raw)
+# dplyr::glimpse(bike_traffic_raw)
+# skimr::skim(bike_traffic_raw)
+
+# to check drob-s assumption on dates> he-s rigth about format.
+# bike_traffic_raw %>% slice(5000:7000)
+  
+bike_traffic <- bike_traffic_raw %>% 
+    mutate(date = mdy_hms(date)) %>% 
+    select(-ped_count) # too much missings
+```
+
+# drob's plot weekday/hour
+
+```{r}
+#credits to drob: 
+# https://github.com/dgrtwo/data-screencasts/blob/master/bike_traffic.Rmd
+
+# week day start
+# https://lubridate.tidyverse.org/reference/day.html
+
+Sys.setlocale("LC_TIME", "English")
+bike_traffic %>%
+  group_by(crossing,
+           weekday = wday(date, label = TRUE,
+                          week_start = getOption("lubridate.week.start", 1)),
+           hour = hour(date)) %>%
+  summarize(total_bikes = sum(bike_count, na.rm = TRUE)) %>%
+  group_by(crossing) %>%
+  mutate(pct_bike = total_bikes / sum(total_bikes)) %>% # aesome 
+  ggplot(aes(hour, pct_bike, color = crossing)) +
+  geom_line(show.legend = FALSE) +
+  facet_grid(crossing ~ weekday,labeller = label_wrap_gen(width = 16)) +
+    theme(strip.text.y = element_text(angle = 360))+
+  scale_y_continuous(labels = percent_format()) +
+  labs(x = "Time of week",
+       y = "% of bike crossings happening in this hour",
+       title = "When in the week do people in Seattle bike?",
+       subtitle = "Based on crossings from 2014-February 2019",
+       caption = "tidytuesday 2019-04-02")
+```
+
+# calendar heat map 
+
+always its really awsome to get a calendar heat map to get similar stuff.
+it gives you other perspective of same data
+
+
+```{r}
+
+#bike_traffic
+#date , hourly, by crossing, direction and bike count.
+# i'll agregate by totalbikes by date.
+
+total_by_hour <- bike_traffic %>% group_by(date) %>% 
+    summarise(total_bikes=sum(bike_count))
+
+total_by_date <- bike_traffic %>%
+    mutate(day=lubridate::as_date(date)) %>% 
+    mutate(day_of_year=lubridate::yday(date)) %>% 
+    mutate(week=lubridate::week(date)) %>% 
+    mutate(year=lubridate::year(date)) %>% 
+    mutate(month=lubridate::month(date)) %>% 
+    mutate(year_month=paste0(year,"-",month)) %>% 
+    filter(year > 2013, year < 2019) %>% 
+    group_by(year_month,year,month,week,day,day_of_year) %>% 
+    summarise(total_bikes=sum(bike_count))
+
+# range(total_by_date$week)
+# range(total_by_date$day_of_year)
+
+plot_month <- total_by_date %>% 
+    ggplot(aes(x=month,y=year,fill = total_bikes)) +
+    geom_tile() +
+    scale_x_continuous(breaks = c(1:12))+
+    scale_fill_viridis_c()+
+    theme_light()+
+    labs(title="Total monthly bike rides",
+         subtitle = "from 2014 to 2018",
+         x= "Month",y="",fill="bikes",
+         caption = "tidytuesday 2019-04-02")
+
+plot_week <- total_by_date %>% 
+    ggplot(aes(x=week,y=year,fill = total_bikes)) +
+    geom_tile() +
+    scale_x_continuous(breaks = c(1,seq(from=10, to=53,by =10),53))+
+    scale_fill_viridis_c()+
+    theme_light()+
+    labs(title="Total weekly bike rides",
+         subtitle = "from 2014 to 2018",
+         x= "Week",y="",fill="bikes",
+         caption = "tidytuesday 2019-04-02")
+
+plot_day_year <- total_by_date %>% 
+    ggplot(aes(x=day_of_year,y=year,fill = total_bikes)) +
+    geom_tile() +
+    scale_x_continuous(breaks = c(1,seq(from=50, to=350,by =50),366))+
+    scale_fill_viridis_c()+
+    theme_light()+
+    labs(title="Total daily bike rides",
+         subtitle = "from 2014 to 2018",
+         x= "Day of the year",y="",fill="bikes",
+         caption = "tidytuesday 2019-04-02")
+
+
+# to plot stuff from different plots. and merge em in a gif.
+animation::saveGIF({
+    
+  plots <- list(plot_month,plot_week,plot_day_year)
+    
+    
+    
+  for (i in 1:length(plots)){  
+      print(plots[i])
+  }
+}, interval = 1, movie.name="drill_down.gif")
+
+
+```
+
+# communicate: 
+
+- this week got inspired by drob's podcast
+- wanted to do a calendar heatmap , long time ago used: rChartsCalmap, discarded de idea
+- mutated to do a month / week / day of year plot 
+- added the drilldown effect with a gif
+- may be cool stuff will be to add functionality to: rChartsCalmap
+- other idea discarded by time constraints: using network animations on: 
+
+
+## some resources: 
+
+- seeking for calendar heatmaps: https://towardsdatascience.com/time-series-calendar-heatmaps-9f576578fcfe
+- an amazing poster like: https://github.com/othomantegazza/code-tidytuesday/blob/master/2-14-seattle-bike-draft-grid.R
+
+- rotate labels on facet grid: https://stackoverflow.com/questions/40484090/rotate-switched-facet-labels-in-ggplot2-facet-grid
+
+- change localtime : to see days in english: 
+https://stackoverflow.com/questions/8145886/change-time-locale-for-r
+
+- combining different plots in a gif: 
+https://stackoverflow.com/questions/32442276/combine-multiple-plots-to-a-gif
+
+- drobs podcast: https://www.youtube.com/watch?v=sBho2GJE5lc
+
+
+
+
+# not used stuff
+```{r}
+# https://towardsdatascience.com/time-series-calendar-heatmaps-9f576578fcfe
+
+# total_by_date %>% 
+#     ggplot(aes(monthweek, weekdayf, fill = amznStock$adjusted)) + 
+#     geom_tile(colour = "white") + 
+#     facet_grid(year(amznStock$date)~monthf) + scale_fill_gradient(low="red", high="green") + xlab("Week of Month") + ylab("") + ggtitle("Time-Series Calendar Heatmap: AMZN Stock Prices") + labs(fill = "Price")
+
+
+# count(total_by_date)
+# count(total_by_hour)
+
+# hourly, date
+
+library(devtools)
+# install.packages('htmlwidgets')
+install_github("Tutuchan/rChartsCalmap")
+library(rChartsCalmap)
+
+range(total_by_date$total_bikes,na.rm = TRUE)
+hist(total_by_date$total_bikes)
+# 24029 / 7 
+# seq(by = 3500, from = 0, to = 25000)
+
+
+# r1 <- 
+calheatmap(x = 'day', y = 'total_bikes',
+  data = total_by_date %>% filter(year==2014), 
+  domain = 'month',
+  start = min(total_by_date$day),
+  legend = c(0,1000,3000,5000,10000,25000),
+  # legend = seq(by = 3500, from = 0, to = 25000),
+  itemName = 'bikes'#,
+  # range = 7
+)
+calheatmap(x = 'day', y = 'total_bikes',
+  data = total_by_date %>% filter(year==2015), 
+  domain = 'month',
+  start = min(total_by_date$day),
+  legend = c(0,1000,3000,5000,10000,25000),
+  # legend = seq(by = 3500, from = 0, to = 25000),
+  itemName = 'bikes'#,
+  # range = 7
+)
+calheatmap(x = 'day', y = 'total_bikes',
+  data = total_by_date, 
+  domain = 'month',
+  start = min(total_by_date$day),
+  legend = c(0,1000,3000,5000,10000,25000),
+  # legend = seq(by = 3500, from = 0, to = 25000),
+  itemName = 'bikes',#,
+  # range = 7
+  itemSelector= "#previousSelector-a",
+  previousSelector= "#previousSelector-a-previous",
+  nextSelector= "#previousSelector-a-next"
+)
+# r1
+```
+
