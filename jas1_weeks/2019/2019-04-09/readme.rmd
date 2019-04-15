@@ -1,0 +1,228 @@
+---
+title: "Tidy tuesday challenge: Week 2019-04-09 Grand Slam"
+author: "julio"
+date: "02-04-2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-04-03 Grand Slam
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+this week data its related to Grand Slam
+https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-04-09
+
+### objectives:
+
+- download and d osomething ...
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(scales)
+library(forcats)
+library(lubridate)
+library(gganimate)
+library(animation)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+player_dob <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-04-09/player_dob.csv")
+
+grand_slams <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-04-09/grand_slams.csv")
+
+grand_slam_timeline <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-04-09/grand_slam_timeline.csv")
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+player_dob %>% skimr::skim()
+player_dob %>% glimpse()
+
+grand_slams %>% skimr::skim()
+grand_slams %>% glimpse()
+
+
+
+grand_slams_procs <- grand_slams %>% 
+    mutate(court=case_when(grand_slam=='australian_open'~'hard',
+                           grand_slam=='french_open'~'clay',
+                           grand_slam=='us_open'~'hard',
+                           grand_slam=='wimbledon'~'grass')) %>% 
+    # https://github.com/emilykuehler/tidytuesday/blob/master/grand-slam-tennis/tennis.R
+    mutate(name = ifelse(name == 'Evonne Goolagong Cawley', 'Evonne Goolagong', name)) %>% 
+    mutate(tournament_order = case_when(grand_slam=='australian_open' ~ 1,
+                                          grand_slam=='french_open' ~ 2,
+                                          grand_slam=='wimbledon' ~ 3,
+    grand_slam=='us_open' ~ 4)) %>% 
+arrange(tournament_date)
+
+# grand_slams %>% count(grand_slam)
+# 
+# grand_slam_timeline %>% skimr::skim()
+# grand_slam_timeline %>% glimpse()
+```
+
+
+# Players by court type; are there players specialized , and players multi surface ?
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+player_gs_plot <- grand_slams_procs %>% 
+    filter(year < 2019) %>% 
+    count(name,court) %>% 
+    mutate(name=fct_reorder(name,n)) %>%
+    arrange(desc(n)) %>% 
+    # head(20) %>%
+    ggplot(aes(x=name,y=n,fill=court))+
+    geom_col()+
+    coord_flip()+
+    theme_light()+
+    theme(axis.text.y = element_text(size=5) )+
+    labs(title="Who won in which court type ? ",
+         subtitle="50 of Tennis Grandslams: winners: 1968 - 2018",
+         caption="#TidyTuesday week 2019-04-09",
+         x="",y="# of grand slams",fill="court type")
+
+ggsave(player_gs_plot,filename = "player_gl_all_time_catchy.png")
+   
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# make a cumulative plot
+grand_slams_procs %>% count(year)
+grand_slams_procs %>% 
+    count(name,court,gender,year) %>% 
+    mutate(name=fct_reorder(name,n)) %>% 
+    ggplot(aes(x=name,y=n,fill=court))+
+    geom_col()+
+    coord_flip() +
+    transition_time(year) +
+    ease_aes('linear')+
+    labs(title="Grandslam players by year & court",
+        subtitle = 'Year: {frame_time}', 
+         x = '', 
+         y = '# grand slams') +#+
+    # facet_grid(~court)
+    
+grand_slams_procs %>% 
+    count(court,year) %>% 
+    ggplot(aes(x=year,y=n, color = court))+
+    geom_line()
+    
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+grand_slams_procs %>% 
+    count(court,year) %>% 
+    ggplot(aes(x=year,y=n, color = court))+
+    geom_line(alpha=0.5)+
+    facet_grid(court~.) +
+    # scale_color_discrete() +
+    labs("Amount of winners by Court types by year",
+         x="",y="#amount of ")+
+    theme_light()
+```
+
+# Player Race
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# https://github.com/emilykuehler/tidytuesday/blob/master/grand-slam-tennis/tennis.R
+init_df <- grand_slams_procs %>% 
+  filter(year <= 1975) %>%
+  group_by(name) %>% 
+  filter(rolling_win_count==max(rolling_win_count)) %>% 
+  ungroup() %>% 
+  top_n(10, wt=rolling_win_count) %>% 
+  arrange(desc(rolling_win_count)) %>% 
+  select(name,gender, rolling_win_count) %>% 
+  mutate(curr_year = 1975,
+ordering = as.double(rev(seq(10:1))) * 1.0)
+
+
+grand_slams_procs %>% count(year)
+
+for (i in 1976:2019) {
+  for (j in 1:4) {
+    tmp_df <- grand_slams_procs %>% 
+      filter(year < i | (year==i & tournament_order <= j)) %>% 
+      group_by(name) %>% 
+      filter(rolling_win_count==max(rolling_win_count)) %>% 
+      ungroup() %>% 
+      top_n(10, wt=rolling_win_count) %>%
+      select(name, gender, rolling_win_count) %>%
+      arrange(desc(rolling_win_count)) %>%
+      slice(1:10) %>% 
+      mutate(curr_year = i,
+             tournament_num = j,
+             ordering = as.double(rev(seq(10:1))) * 1.0) 
+    
+    init_df <- init_df %>%
+      bind_rows(tmp_df)
+  }
+}
+
+final_df <- init_df %>% 
+  group_by(curr_year, tournament_num) %>% 
+  mutate(num = group_indices()) %>% 
+  ungroup()
+
+# plot race
+#make plot
+barplot_race <- ggplot(aes(ordering, group = name), data = final_df) +
+  geom_tile(aes(y = rolling_win_count / 2, 
+                height = rolling_win_count,
+                width = 0.9, fill=gender), alpha = 0.9) +
+  scale_fill_manual(values = c('#F8AFA8','#74A089')) +
+  geom_text(aes(y = rolling_win_count, label = name), 
+            # family=my_font, 
+            nudge_y = -2, size = 3) +
+  geom_text(aes(y = rolling_win_count, label = as.character(rolling_win_count)), 
+            # family=my_font, 
+            nudge_y = 0.5) +
+  geom_text(aes(x=1,y=18.75, label=paste0(curr_year)), 
+            # family=my_font, 
+            size=8, color = 'gray45') +
+  coord_cartesian(clip = "off", expand = FALSE) +
+  coord_flip() +
+  labs(title = 'Most Grand Slam Singles Championships',
+       subtitle = 'Open Era Only',
+       caption = 'data source: Wikipedia | plot by @emilykuehler',
+       x = '',
+       y = '') +
+  transition_states(num, 
+                    transition_length = 4, state_length = 3) +
+  ease_aes('cubic-in-out')
+
+animate(barplot_race, nframes = 1000, fps = 30, width = 600, height = 400, res=80, detail = 3)
+
+anim_save("barplot_race.gif")
+
+```
