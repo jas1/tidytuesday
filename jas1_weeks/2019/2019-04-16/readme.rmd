@@ -1,0 +1,116 @@
+---
+title: "Tidy tuesday challenge: Week 2019-04-16 better plots"
+author: "julio"
+date: "02-04-2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-04-16 better plots
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+Better plots. 
+https://medium.economist.com/mistakes-weve-drawn-a-few-8cdd8a42d368
+
+
+### objectives:
+
+- make some of the better plots, at least once that i like .
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(scales)
+library(forcats)
+library(lubridate)
+library(gganimate)
+library(animation)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+brexit <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-04-16/brexit.csv")
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# 
+color_red <- "#dd6e6d"
+color_blue <- "#116ea1"
+
+color_values_manual <- c("Wrong"=color_red,"Right"=color_blue)
+colour_texts <- data.frame(x=ymd(c("2018-02-01","2018-02-01")),
+                           y=c(43,46),
+                           label=c("Right","Wrong"))
+
+brexit_data <- brexit %>% 
+    mutate(date=lubridate::dmy(date)) %>% 
+    rename(Right=percent_responding_right,Wrong=percent_responding_wrong) %>% 
+    gather(key="response_type",value = "percent",Right,Wrong)
+
+bremorse_plot <- brexit_data  %>%  ggplot(aes(x=date,y=percent,colour=response_type))+
+    geom_point(alpha=0.5)+
+    geom_smooth(se = FALSE)+
+    annotate("text", x = ymd("2018-02-01"), y = 47, label = "Wrong",
+             colour=color_red,fontface =2)+
+    annotate("text", x = ymd("2018-02-01"), y = 41, label = "Right",
+             colour=color_blue,fontface =2)+
+    # geom_text(data = colour_texts,aes(x=x,y=y,label=label))+
+    scale_y_continuous(labels = scales::percent_format(scale=1),
+                       position = "right")+
+    # scale_x_continuous(breaks = breaks = c(2016,2017,2018))+
+    scale_color_manual( values=color_values_manual)+
+    theme_minimal()+
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 90),
+          plot.title=element_text(face="bold",colour = "#000000"),
+          plot.subtitle=element_text(face="plain",colour = "#333333"),
+          plot.caption =element_text(face="plain",colour = "#666666"))+
+    labs(x="",y="",
+         title="Bremorse",
+         subtitle='"In hindsigth, do you think Britain was Rigth or Wrong\nto vote to leave EU"',
+         caption = "Source NatCen Social Research")
+
+ggsave(plot = bremorse_plot,filename = "20190418_bremorse.png")
+        
+
+# brexit_data %>% skimr::skim()
+
+```
+
+# usefull links: 
+
+smooth line: 
+https://ggplot2.tidyverse.org/reference/geom_smooth.html
+
+text annotations: 
+https://stackoverflow.com/questions/31568453/using-different-font-styles-in-annotate-ggplot2
+
+percent: 
+https://stackoverflow.com/questions/27433798/how-to-change-y-axis-range-to-percent-from-number-in-barplot-with-r
+
+themes: 
+https://ggplot2.tidyverse.org/reference/theme.html
