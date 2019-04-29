@@ -1,0 +1,264 @@
+---
+title: "Tidy tuesday challenge: Week 2019-04-23 Anime data"
+author: "julio"
+date: "02-04-2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-04-23 Anime data 
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+anime data, as seen on readme.
+
+### objectives:
+
+- do some text mining
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(scales)
+library(forcats)
+library(lubridate)
+library(gganimate)
+library(animation)
+
+library(tm)#; install.packages('tm')
+library(topicmodels)#; install.packages('topicmodels')
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+
+library(widyr) # for pairwise core
+library(ggraph) # for graph drawing
+library(igraph)  # for graph managing
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# tidy_anime <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-04-23/tidy_anime.csv")
+
+# as its quite big , just get the local copy.
+tidy_anime <- readr::read_csv(here::here("data","2019","2019-04-23","tidy_anime.csv"))
+
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(tidy_anime)
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+skimr::skim(tidy_anime)
+```
+
+# Clustering by numeric vars, not id and not missing
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+synopsis_word_count <- tidy_anime %>%
+    distinct(synopsis) %>% 
+    # slice(1:5) %>% 
+    unnest_tokens(word, synopsis) %>% 
+    anti_join(tidytext::get_stopwords()) %>%
+    # anti_join(sw_man) %>%
+    count(word, sort = TRUE)
+    
+
+
+synopsis_word_count %>% 
+    mutate(word=fct_reorder(word,n)) %>% 
+    slice(1:20) %>% 
+    ggplot(aes(word,n,fill=word))+
+    geom_col()+
+    theme_light()+
+    theme(legend.position = "none")+
+    coord_flip()+
+    labs(title="Top 20 words")
+
+
+
+```
+after seying the wordcount of top 20 , we need to analize ngrams as ...  words alone are not that representative. 
+
+# bigrams
+
+```{r}
+synopsis_bigram_all<- tidy_anime %>%
+    distinct(synopsis,.keep_all = TRUE) %>% # keep all columns 
+    arrange(rank) %>% 
+    # slice(1:10) %>% 
+    unnest_tokens(bigram, synopsis,token = "ngrams", n = 2) %>% 
+    # anti_join(tidytext::get_stopwords()) %>%
+    # anti_join(sw_man) %>%
+    count(bigram, sort = TRUE)
+
+synopsis_bigram_filter_dgt <- synopsis_bigram_all %>% 
+    filter(!str_detect(bigram,rebus::DGT))  # quito los numeros
+
+synopsis_bigram_filter_stopwords <-  synopsis_bigram_all %>% 
+    separate(bigram, c("word1", "word2"), sep = " ") %>% 
+    filter(!word1 %in% tidytext::get_stopwords()$word) %>%
+    filter(!word2 %in% tidytext::get_stopwords()$word) %>% 
+    count(word1, word2, sort = TRUE) %>%
+    unite(bigram, word1, word2, sep = " ")
+    
+
+synopsis_bigram_all %>% glimpse()
+synopsis_bigram_filter_dgt %>% glimpse()
+synopsis_bigram_filter_stopwords %>% glimpse()
+
+synopsis_bigram_count %>% filter(n<1)
+
+# bigram_counts <- synopsis_bigram_count 
+    
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+top_10_words_from_top_n_anime <- tidy_anime %>%
+    distinct(synopsis,.keep_all = TRUE) %>% # keep all columns 
+    arrange(rank) %>% slice(1:10) %>% # Subset to top 10 mangas/animes
+    nest(-title_english) %>% # to get the 10 1st words for each title sinopsis
+    mutate(top_words_synopsis=purrr::map(data,function(data){
+        result_top_words_title <- data %>% # evaluate this title data
+            unnest_tokens(word, synopsis) %>%  # extract every word from synopsis
+            anti_join(tidytext::get_stopwords()) %>%  # removed stopwords
+            filter(str_detect(word,"[a-z]")) %>%  # removed numbers
+            select(word) %>% 
+            count(word,sort = TRUE) %>% # count words 
+            slice(1:3) # get top 10 words for this data
+        result_top_words_title
+    })) %>% 
+    unnest(top_words_synopsis) # explode the nested  title_english + top 10 words + count.
+    # purrr::reduce(top_words_synopsis,union_all)
+
+
+
+top_10_words_from_top_n_anime%>% 
+    mutate(word=fct_reorder(word,n)) %>% 
+    ggplot(aes(x=word,y=n,fill=title_english))+
+    geom_col()+
+    scale_y_continuous(breaks = c(1:8))+
+    coord_flip()+
+    # facet_grid(title_english~.)+
+    # theme(legend.position = "none")
+    labs(title = "Top 3 words in sinopsis by anime",
+         subtitle="In top 10 anime",
+         caption = "#TidyTuesday 2019-04-23",
+         x="# of word",y="",
+         fill="Title (EN)")
+
+
+
+# result_pair_word_cor <- top_10_words_from_top_n_anime %>%
+#     widyr::pairwise_cor(word,title_english,sort=TRUE) 
+# 
+# top_10_words_from_top_n_anime %>% 
+#     left_join(result_pair_word_cor,by=c("word"="item1"))
+#     
+# 
+# result_pair_word_cor %>% head(500)
+
+``` 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# words_for_ngram %>% View()
+# drob medium articles: https://www.youtube.com/watch?v=C69QyycHsgE
+# install.packages("widyr")
+
+
+# NOOOOOOO ! hanged my pc, so do not this directly , try to subset 1st.
+# i7 , 16gb ram. not filtered , just distinct synopsis
+# 
+# 
+# set.seed(2019)
+# result_pair_word_cor %>% 
+#     head(500)%>% # for graph stuff , limiting again: 
+#     graph_from_data_frame() %>% 
+#     ggraph()+
+#     geom_edge_link()+
+#     geom_node_point()+
+#     geom_node_text(aes(label=name),repel=TRUE)+
+#     theme_void()
+#     
+
+
+```
+
+
+
+```{r}
+# anime_top_n_dtm <- top_10_words_from_top_n_anime %>%
+#     cast_dtm(title_english, word, n)
+# 
+# # pozos_evento_dtm
+# anime_top_n_lda <- LDA(anime_top_n_dtm, k = 3, control = list(seed = 1234))
+# anime_top_n_lda
+# 
+# anime_top_n_lda_td <- tidy(anime_top_n_lda)
+# anime_top_n_lda_td
+# 
+# 
+# top_terms <- anime_top_n_lda_td %>%
+#     group_by(topic) %>%
+#     top_n(5, beta) %>%
+#     ungroup() %>%
+#     arrange(topic, -beta)
+# 
+# top_terms
+# 
+# 
+# top_terms %>%
+#     mutate(term = reorder(term, beta)) %>%
+#     ggplot(aes(term, beta)) +
+#     geom_bar(stat = "identity") +
+#     theme_bw()+
+#     facet_wrap(~ topic, scales = "free") +
+#     theme(axis.text.x = element_text(size = 15, angle = 90, hjust = 1))
+
+```
+
+
+# usefull links: 
+
+almost none used, short time to invest here this week :( 
+
+this was an amazing chance to use something with text mining across time =) 
+
+some usefull data: 
+
+topic modeling: https://www.tidytextmining.com/topicmodeling.html
+
+words & ngrams: https://www.tidytextmining.com/ngrams.html
+
+drob's screencast: medium data: https://www.youtube.com/watch?v=C69QyycHsgE
+
+drob's screencast: thanks giving: https://www.youtube.com/watch?v=rxJZT0duwfU
