@@ -1,0 +1,194 @@
+---
+title: "Tidy tuesday challenge: Week 2019-05-07 UNESCO Student Teacher Ratio"
+author: "julio"
+date: "12 de mayo de 2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-05-07  UNESCO Student Teacher Ratio
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+UNESCO Student Teacher Ratio
+
+### objectives:
+
+- explore and decide
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(scales)
+library(forcats)
+library(lubridate)
+library(gganimate)
+library(animation)
+
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+
+library(rworldxtra) # para datos iso3, segun gabo
+library(sf)
+
+# devtools::install_github('rensa/ggflags')
+library(ggflags) # https://github.com/rensa/ggflags
+
+# library(widyr) # for pairwise core
+# library(ggraph) # for graph drawing
+# library(igraph)  # for graph managing
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+student_ratio <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-07/student_teacher_ratio.csv")
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(student_ratio)
+# glimpse(mp_light)
+
+# bird_collisions %>% count(family,genus,species,sort = TRUE)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+skimr::skim(student_ratio)
+# skimr::skim(mp_light)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+student_ratio %>% 
+    count(flags)
+
+student_ratio %>% 
+    count(flag_codes)
+
+student_ratio %>% 
+    count(indicator)
+
+student_ratio %>% 
+    count(year)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+student_ratio %>% 
+    filter(year < 2018) %>% 
+    group_by(indicator,year) %>% 
+    summarise(world_total_ratio=sum(student_ratio,na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(indicator=fct_reorder(indicator,world_total_ratio)) %>% 
+    ggplot(aes(x=year,y=world_total_ratio,fill=indicator))+
+    geom_area()+
+    labs(x="",y="Sumemd Ratio",fill="Education Level",
+         title="World total Student/Teacher Ratio",
+         subtitle="From 2012 to 2017")
+```
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# Based on: https://twitter.com/packpridejones/status/1127032282517266433
+
+
+data("countriesHigh", package = "rworldxtra")
+# listado paises para SF ( los mapas )
+countries <- countriesHigh %>% 
+    st_as_sf() %>%
+    as_tibble() %>% 
+    filter(REGION != "Antarctica") %>% 
+    select(NAME, ISO_A3,ISO_A2,REGION) %>% 
+    mutate(ISO_A2=str_to_lower(ISO_A2))
+
+student_ratio_with_codes <- student_ratio %>% 
+    left_join(countries,by = c("country_code"="ISO_A3"))
+student_ratio_with_codes %>% filter(str_detect(REGION,"South")) %>% count(NAME,ISO_A2)
+
+student_ratio_with_codes %>% count(indicator)
+
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+filtered_data <- student_ratio_with_codes %>% 
+    filter(year < 2018) %>% 
+    # filter(str_detect(REGION,"South")) %>% 
+    filter(ISO_A2 %in% c('ar','br','cl','co','ec','gd','gy','py','pe','uy','ve')) %>%     filter(indicator=="Primary Education") #%>% 
+    # mutate(year=as.character(year)) 
+
+# but with flags :D 
+mean_y <-  mean(filtered_data$student_ratio,na.rm = TRUE)
+
+original_anim <- filtered_data%>% 
+    ggplot(aes(year,student_ratio,color=country_code))+
+    # geom_jitter(alpha=0.5)+
+    geom_line()+
+    geom_point(alpha=0.5)+
+    geom_flag(data=filtered_data,
+        aes(country = ISO_A2),
+        size = rel(5),alpha=0.5)+
+    labs(x="",y="Student/Teacaher Ratio",
+         color="Country",
+         title="Primary Education Student Teacher Ratio on South America",
+         subtitle="2012/2017; missing values on some countries.",
+         caption = "#tidytuesday")
+
+#+
+    # geom_hline(yintercept = mean_y,color="orange")+
+    # coord_flip()+
+    # theme(panel.background = element_blank())+
+    # transition_states(year,
+    #                   transition_length = 1,
+    #                   state_length = 0.1,
+    #                   wrap = FALSE)+
+    # enter_fade()+
+    # exit_fade()+
+    # labs(title="Year: {closest_state}",
+    #      x="",y="student ratio",
+    #      caption="#tidytuesday")
+    
+
+# animate(original_anim, fps = 6)
+# 
+# anim_save("student_ratio.gif",
+#           original_anim)
+
+
+ggsave(plot = original_anim,filename = "20190507_challenge.png")
+
+
+```
+
+
+## communicate
+
+well not best week not best times ... just keep rowing.
+
+
+
