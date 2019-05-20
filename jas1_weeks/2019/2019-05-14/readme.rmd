@@ -1,0 +1,255 @@
+---
+title: "Tidy tuesday challenge: Week 2019-05-14 Nobel prize"
+author: "julio"
+date: "19 - 5 - 2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-05-14 Nobel Prize
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+UNESCO Student Teacher Ratio
+
+### objectives:
+
+- explore and decide
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(scales)
+library(forcats)
+library(lubridate)
+library(gganimate)
+library(animation)
+
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+# 
+# library(rworldxtra) # para datos iso3, segun gabo
+# library(sf)
+
+# devtools::install_github('rensa/ggflags')
+# library(ggflags) # https://github.com/rensa/ggflags
+
+# library(widyr) # for pairwise core
+# library(ggraph) # for graph drawing
+# library(igraph)  # for graph managing
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nobel_winners <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winners.csv")
+nobel_winner_all_pubs <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winner_all_pubs.csv")
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(nobel_winners)
+glimpse(nobel_winner_all_pubs)
+
+# bird_collisions %>% count(family,genus,species,sort = TRUE)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nobel_winners %>% skimr::skim()
+
+# nobel_winner_all_pubs$
+```
+
+# switched to WAffles ! :D  trying default
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# install.packages("waffle")
+# devtools::install_github("hrbrmstr/waffle")
+library(waffle)
+# ?geom_waffle
+storms %>% 
+  filter(year >= 2010) %>% 
+  count(year, status) -> storms_df
+
+# dim(storms_df)
+
+ggplot(storms_df, aes(fill = status, values = n)) + 
+  geom_waffle(color = "white", size = .25, n_rows = 10, flip = TRUE) +
+  facet_wrap(~year, nrow = 1, strip.position = "bottom") +
+  scale_x_discrete() + 
+  scale_y_continuous(labels = function(x) x * 10, # make this multiplyer the same as n_rows
+                     expand = c(0,0)) +
+  ggthemes::scale_fill_tableau(name=NULL) +
+  coord_equal() +
+  labs(
+    title = "Faceted Waffle Bar Chart",
+    subtitle = "{dplyr} storms data",
+    x = "Year",
+    y = "Count"
+  ) +
+  theme_minimal(base_family = "Roboto Condensed") +
+  theme(panel.grid = element_blank(), axis.ticks.y = element_line()) +
+  guides(fill = guide_legend(reverse = TRUE))
+
+```
+# Waffles with publications
+
+```{r}
+
+
+nobel_arts_waffle_df_2 <- nobel_winner_all_pubs %>% 
+    mutate(decade=floor(pub_year/10)*10) %>% 
+    count(category,decade) %>% 
+    filter(complete.cases(.)) %>% arrange(decade)
+
+# nobel_arts_waffle_df <- nobel_winner_all_pubs %>% 
+#     count(category) %>% 
+#     mutate(n=n/1000)
+
+# dim(nobel_winner_all_pubs %>% count(category))    
+nobel_arts_waffle_df_2 %>% 
+
+    ggplot(aes(x=decade,colour=category,fill=category,y=n, values = n)) + 
+    geom_jitter()+
+    facet_grid(category~.)+
+    ggthemes::scale_fill_tableau(name=NULL)
+
+```
+
+```{r}
+
+nobel_wins_waffle_df <- nobel_winners %>% 
+    mutate(decade=floor(prize_year/10)*10) %>% 
+    count(category,decade) %>% 
+    mutate(tenths=n/10)
+
+rows_multiplier <- 10
+
+waffle_save <- nobel_wins_waffle_df %>% 
+ggplot( aes(fill = category, values = n)) + 
+  geom_waffle(color = "white", size = .25, n_rows = rows_multiplier, flip = FALSE) +
+      facet_wrap(~decade, nrow = 2, strip.position = "bottom") +
+
+  scale_x_discrete() + 
+  scale_y_continuous(labels = function(x) x * rows_multiplier, # make this multiplyer the same as n_rows
+                     expand = c(0,0)) +
+  # ggthemes::scale_fill_(name=NULL) +
+    scale_fill_brewer(type="qual",palette = "Accent")+
+  coord_equal() +
+  labs(
+    title = "Nobel Prizes Winners by category and decade",
+    caption = "#tidytuesday 2019-05-14",
+    x = "",
+    y = "#"
+  ) +
+  theme_minimal() +
+    # coord_flip()+
+  theme(panel.grid = element_blank(), axis.ticks.y = element_line()) +
+  guides(fill = guide_legend(reverse = TRUE))
+
+# ggsave(filename = waffle_save,plot="waffle_winners_categry_date.png")
+    ggsave(plot = waffle_save,filename = "waffle_winners_categry_date.png")
+
+```
+
+```{r}
+
+nobel_arts_waffle_df <- nobel_winner_all_pubs %>% 
+    mutate(decade=floor(pub_year/10)*10) %>% 
+    count(category,decade) %>% 
+    filter(complete.cases(.)) %>% arrange(decade)
+
+nobel_arts_waffle_df %>% 
+    filter(decade <1900 )%>% 
+ggplot( aes(fill = category, values = n)) + 
+  geom_waffle(color = "white", size = .25, n_rows = 10, flip = TRUE) +
+  facet_wrap(~decade, nrow = 1, strip.position = "bottom") +
+  scale_x_discrete() + 
+  scale_y_continuous(labels = function(x) x * 10, # make this multiplyer the same as n_rows
+                     expand = c(0,0)) +
+  ggthemes::scale_fill_colorblind(name=NULL) +
+  coord_equal() +
+  labs(
+    title = "Nobel prizes - articles - before 1900",
+    subtitle = "#tidytuesday 2019-05-14",
+    x = "",
+    y = "#"
+  ) +
+  theme_minimal() +
+  theme(panel.grid = element_blank(), axis.ticks.y = element_line()) +
+  guides(fill = guide_legend(reverse = TRUE))
+    
+```
+
+```{r}
+
+# install.packages("ggbeeswarm")
+# library("ggbeeswarm")
+# 
+# nobel_arts_waffle_df %>% 
+#     # filter(decade >=1900  )%>% 
+#     filter(decade <1950  )%>% 
+#     ggplot( aes( x = decade, y = n, fill = category))+
+#         geom_beeswarm(aes(color = category))
+nobel_arts_waffle_df %>% 
+    ggplot( aes( x = decade, y = n, fill = category))+
+    geom_col()+
+    scale_x_discrete() 
+
+
+nobel_arts_waffle_df %>% count(category)
+
+# 
+# nobel_arts_waffle_df %>% 
+#     filter(decade >=1900  )%>% 
+#     filter(decade <1950  )%>% 
+# ggplot( aes(x=fill = category, values = n)) + 
+#   # geom_waffle(color = "white", size = .25, n_rows = 10, flip = TRUE) +
+# geom_point()
+#   facet_wrap(~decade, nrow = 1, strip.position = "bottom") +
+#   scale_x_discrete() + 
+#   scale_y_continuous(labels = function(x) x * 10, # make this multiplyer the same as n_rows
+#                      expand = c(0,0)) +
+#   ggthemes::scale_fill_tableau(name=NULL) +
+#   coord_equal() +
+#   labs(
+#     title = "Nobel prizes 1900 - 1950",
+#     subtitle = "#tidytuesday 20190514",
+#     x = "",
+#     y = "#"
+#   ) +
+#   theme_minimal() +
+#   theme(panel.grid = element_blank(), axis.ticks.y = element_line()) +
+#   guides(fill = guide_legend(reverse = TRUE))
+```
+
+
+# communicate
+
+well not best week not best times ... just keep rowing.x2
+
+
+
