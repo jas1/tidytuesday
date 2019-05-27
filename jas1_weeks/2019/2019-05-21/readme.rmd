@@ -1,0 +1,295 @@
+---
+title: "Tidy tuesday challenge: Week 2019-05-21 plastic waste"
+author: "julio"
+date: "21 - 5 - 2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-05-21 plastic waste
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+Global Plastic Waste our world in data
+
+### objectives:
+
+- explore & do a quick one , short time this week
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(scales)
+library(forcats)
+library(lubridate)
+library(gganimate)
+library(animation)
+
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+# 
+# library(rworldxtra) # para datos iso3, segun gabo
+# library(sf)
+
+# devtools::install_github('rensa/ggflags')
+library(ggflags) # https://github.com/rensa/ggflags
+
+# library(widyr) # for pairwise core
+# library(ggraph) # for graph drawing
+# library(igraph)  # for graph managing
+
+# install.packages("waffle")
+# devtools::install_github("hrbrmstr/waffle")
+library(waffle)
+library(countrycode)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+coast_vs_waste <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-21/coastal-population-vs-mismanaged-plastic.csv")
+
+coast_vs_waste <- coast_vs_waste %>% janitor::clean_names()
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(coast_vs_waste)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+coast_vs_waste %>% skimr::skim()
+
+# nobel_winner_all_pubs$
+```
+
+# Plastic waste vs Coast population in South America
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# ?geom_waffle
+# coast_vs_waste %>% 
+#   filter(year >= 2010) %>% 
+#   count(year, status) -> storms_df
+
+
+
+countries_continent <- countrycode::codelist %>%  
+    select(continent,iso3c,iso2c,country.name.en) %>% 
+    mutate(iso2c=str_to_lower(iso2c))
+
+dataset_to_plot <- coast_vs_waste %>% 
+    left_join(countries_continent,by=c("code"="iso3c")) %>% 
+    filter(!is.na(continent)) %>% 
+    filter(iso2c %in% c('ar','br','cl','co','ec','gf','sr','gy','py','pe','uy','ve')) %>% 
+    filter(year>=1950) %>% 
+    group_by(continent,code,iso2c) %>% 
+    summarise(log_total_coastal_population=log(sum(coastal_population,na.rm = TRUE)+1),
+              log_total_mismanaged_plastic_waste_tonnes=log(sum(mismanaged_plastic_waste_tonnes,na.rm = TRUE)+1)) %>% 
+    filter(log_total_coastal_population!=0)
+
+# countries_continent %>% filter(iso2c=="gf")
+flag_data <- dataset_to_plot %>% select(iso2c,log_total_coastal_population,log_total_mismanaged_plastic_waste_tonnes)
+
+plot_plastic_coast_population <- dataset_to_plot %>% 
+    ggplot(aes(x=log_total_coastal_population,
+               y=log_total_mismanaged_plastic_waste_tonnes
+               #color=continent))+
+    ))+
+    # geom_hex(alpha=0.5) +#+
+    scale_fill_viridis_c()+
+    # geom_tile()
+    geom_point()+
+    geom_text(data = flag_data,aes(label = iso2c),nudge_y = 0.3,alpha=0.75,colour="#6c6c6c")+
+    geom_flag(data = flag_data,aes(country = iso2c), alpha=0.5)+
+    theme_light()+
+    labs(title="Plastic waste vs Coast population in South America",
+         subtitle="log scaled, total sum 1950-2013",
+         caption="#TidyTuesday",
+         y="Total mismanaged plastic waste(log)",
+         x="Total Coast population(log)")
+    # facet_grid(.~continent)
+
+ggsave(plot_plastic_coast_population,filename = "plastic_coast_pop.png")
+
+```
+# Waffles with publications
+
+```{r}
+
+
+nobel_arts_waffle_df_2 <- nobel_winner_all_pubs %>% 
+    mutate(decade=floor(pub_year/10)*10) %>% 
+    count(category,decade) %>% 
+    filter(complete.cases(.)) %>% arrange(decade)
+
+# nobel_arts_waffle_df <- nobel_winner_all_pubs %>% 
+#     count(category) %>% 
+#     mutate(n=n/1000)
+
+# dim(nobel_winner_all_pubs %>% count(category))    
+nobel_arts_waffle_df_2 %>% 
+
+    ggplot(aes(x=decade,colour=category,fill=category,y=n, values = n)) + 
+    geom_jitter()+
+    facet_grid(category~.)+
+    ggthemes::scale_fill_tableau(name=NULL)
+
+```
+
+# # Plastic waste vs Coast line km in South America
+
+```{r}
+#https://en.wikipedia.org/wiki/List_of_countries_by_length_of_coastline
+
+ # Brazil 	16 	7,491 	9 	33,379 	8,459,417 	0.886 	3.95
+ # Argentina 	24 	4,989 	30 	8,397 	2,736,690 	1.82 	3.07
+ # Uruguay 	85 	660 	98 	1,096 	175,015 	3.77 	6.26
+ # Chile 	19 	6,435 	5 	78,563 	743,812 	8.65 	106
+ # Peru 	48 	2,414 	55 	3,362 	1,279,996 	1.89 	2.63
+ # Venezuela 	39 	2,800 	37 	6,762 	882,050 	3.17 	7.67
+ # Colombia 	36 	3,208 	41 	5,875 	1,038,700 	3.09 	5.66
+ # Ecuador 	51 	2,237 	47 	4,597 	276,841 	8.08 	16.6
+ # Suriname 	107 	386 	114 	620 	156,000 	2.47 	3.97
+ # Guyana 	98 	459 	95 	1,154 	196,849 	2.33 	5.86
+ # French Guiana 			— 	763
+# World Resources Institute values only + country & iso2 for joining
+wri_coast_table <- tibble::tribble(
+           ~country, ~iso2, ~coast_km,
+           "Brazil",  "br",     33379,
+        "Argentina",  "ar",      8397,
+          "Uruguay",  "uy",      1096,
+            "Chile",  "cl",     78563,
+             "Peru",  "pe",      3362,
+        "Venezuela",  "ve",      6762,
+         "Colombia",  "co",      5875,
+          "Ecuador",  "ec",      4597,
+         "Suriname",  "sr",       620,
+           "Guyana",  "gy",      1154,
+    "French Guiana",  "gf",       763
+    )
+data_plot_2 <- dataset_to_plot %>% left_join(wri_coast_table,by = c("iso2c"="iso2"))
+flag_data_2 <- data_plot_2 %>% select(iso2c,coast_km,log_total_coastal_population,log_total_mismanaged_plastic_waste_tonnes)
+
+plot_plastic_coast_km <- data_plot_2 %>% 
+    ggplot(aes(x=log(coast_km),
+               y=log_total_mismanaged_plastic_waste_tonnes
+               #color=continent))+
+    ))+
+    # geom_hex(alpha=0.5) +#+
+    scale_fill_viridis_c()+
+    # geom_tile()
+    geom_point()+
+    geom_text(data = flag_data_2,aes(label = iso2c),nudge_y = 0.3,alpha=0.75,colour="#6c6c6c")+
+    geom_flag(data = flag_data_2,aes(country = iso2c))+
+    theme_light()+
+    labs(title="Plastic waste vs Coast Km in South America",
+         subtitle="log scaled, total sum 1950-2013",
+         caption="#TidyTuesday",
+         y="Total mismanaged plastic waste(log)",
+         x="Total Coast Km (log)")
+ggsave(plot_plastic_coast_km,filename = "plastic_coast_km.png")
+
+```
+
+```{r}
+
+nobel_arts_waffle_df <- nobel_winner_all_pubs %>% 
+    mutate(decade=floor(pub_year/10)*10) %>% 
+    count(category,decade) %>% 
+    filter(complete.cases(.)) %>% arrange(decade)
+
+nobel_arts_waffle_df %>% 
+    filter(decade <1900 )%>% 
+ggplot( aes(fill = category, values = n)) + 
+  geom_waffle(color = "white", size = .25, n_rows = 10, flip = TRUE) +
+  facet_wrap(~decade, nrow = 1, strip.position = "bottom") +
+  scale_x_discrete() + 
+  scale_y_continuous(labels = function(x) x * 10, # make this multiplyer the same as n_rows
+                     expand = c(0,0)) +
+  ggthemes::scale_fill_colorblind(name=NULL) +
+  coord_equal() +
+  labs(
+    title = "Nobel prizes - articles - before 1900",
+    subtitle = "#tidytuesday 2019-05-14",
+    x = "",
+    y = "#"
+  ) +
+  theme_minimal() +
+  theme(panel.grid = element_blank(), axis.ticks.y = element_line()) +
+  guides(fill = guide_legend(reverse = TRUE))
+    
+```
+
+```{r}
+
+# install.packages("ggbeeswarm")
+# library("ggbeeswarm")
+# 
+# nobel_arts_waffle_df %>% 
+#     # filter(decade >=1900  )%>% 
+#     filter(decade <1950  )%>% 
+#     ggplot( aes( x = decade, y = n, fill = category))+
+#         geom_beeswarm(aes(color = category))
+nobel_arts_waffle_df %>% 
+    ggplot( aes( x = decade, y = n, fill = category))+
+    geom_col()+
+    scale_x_discrete() 
+
+
+nobel_arts_waffle_df %>% count(category)
+
+# 
+# nobel_arts_waffle_df %>% 
+#     filter(decade >=1900  )%>% 
+#     filter(decade <1950  )%>% 
+# ggplot( aes(x=fill = category, values = n)) + 
+#   # geom_waffle(color = "white", size = .25, n_rows = 10, flip = TRUE) +
+# geom_point()
+#   facet_wrap(~decade, nrow = 1, strip.position = "bottom") +
+#   scale_x_discrete() + 
+#   scale_y_continuous(labels = function(x) x * 10, # make this multiplyer the same as n_rows
+#                      expand = c(0,0)) +
+#   ggthemes::scale_fill_tableau(name=NULL) +
+#   coord_equal() +
+#   labs(
+#     title = "Nobel prizes 1900 - 1950",
+#     subtitle = "#tidytuesday 20190514",
+#     x = "",
+#     y = "#"
+#   ) +
+#   theme_minimal() +
+#   theme(panel.grid = element_blank(), axis.ticks.y = element_line()) +
+#   guides(fill = guide_legend(reverse = TRUE))
+```
+
+
+# communicate
+
+well not best week not best times ... just keep rowing.x2
+
+
+
