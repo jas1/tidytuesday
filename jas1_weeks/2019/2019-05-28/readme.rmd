@@ -1,0 +1,272 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-05-28 wines!"
+author: "julio"
+date: "21 - 5 - 2019"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-05-28 wines!
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+Global Plastic Waste our world in data
+
+### objectives:
+
+- explore & do a quick one , short time this week
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(skimr)
+library(readr) 
+library(ggplot2)
+library(scales)
+library(forcats)
+library(lubridate)
+library(gganimate)
+library(animation)
+
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+# 
+# library(rworldxtra) # para datos iso3, segun gabo
+# library(sf)
+
+# devtools::install_github('rensa/ggflags')
+# library(ggflags) # https://github.com/rensa/ggflags
+
+# library(widyr) # for pairwise core
+# library(ggraph) # for graph drawing
+# library(igraph)  # for graph managing
+
+# install.packages("waffle")
+# devtools::install_github("hrbrmstr/waffle")
+library(waffle)
+library(countrycode)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wine_ratings <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-28/winemag-data-130k-v2.csv")
+
+wine_ratings_clean <- wine_ratings %>% rename(id=X1)
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(wine_ratings)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wine_ratings_clean %>% skimr::skim()
+
+# nobel_winner_all_pubs$
+```
+
+# wineries by country & price
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wineries_country_price <-  wine_ratings_clean %>% 
+    select(country,winery,price) %>% 
+    filter(complete.cases(.))
+
+wine_data_plot_1 <- wineries_country_price %>% arrange(country) %>% 
+    group_by(country) %>% 
+    summarise(q01=quantile(price,probs = 0.01),
+              q25=quantile(price,probs = 0.25),
+              q5=quantile(price,probs = 0.5),
+              q75=quantile(price,probs = 0.75),
+              q99=quantile(price,probs = 0.99)) %>% 
+    gather(quantile,price,-country) 
+    
+
+wine_data_plot_1 %>% 
+    ungroup() %>% 
+    mutate(country=fct_reorder(country,price)) %>% 
+    ggplot(aes(x=quantile,y=price,fill=country))+
+    geom_col()+
+    coord_flip()
+
+# wine_data_plot_1 %>% filter(str_detect(country,"gu") )
+wine_data_plot_1 %>% 
+    filter(country %in% 
+               c('Argentina','Brazil','Chile','Colombia','Ecuador',
+                 'French Guyana','Suriname','Guyana',
+                 'Paraguay','Peru','Uruguay','Venezuela')) %>% 
+    ungroup() %>% 
+    mutate(country=fct_reorder(country,price)) %>% 
+    ggplot(aes(x=country,y=price,fill=quantile))+
+    geom_col()+
+    coord_flip()
+```
+# types of wines & countries
+
+```{r}
+country_variety <-  wine_ratings_clean %>% 
+    select(country,variety) %>% 
+    filter(complete.cases(.)) 
+
+with_100_reviews <- country_variety %>% 
+    count(country,variety) %>% 
+    filter(n>100)
+    
+top_20_varieties <- wine_ratings_clean %>% 
+    select(country,variety) %>% 
+    filter(complete.cases(.)) %>% 
+    count(variety,sort=TRUE) %>% 
+    head(20)
+
+top_20_countries <- wine_ratings_clean %>% 
+    select(country,variety) %>% 
+    filter(complete.cases(.)) %>% 
+    count(country,sort=TRUE) %>% 
+    head(20)
+
+top_20_critics <- wine_ratings_clean %>% 
+    select(taster_name,variety) %>% 
+    filter(complete.cases(.)) %>% 
+    count(taster_name,sort=TRUE) %>% 
+    head(20)
+
+
+top_20_varieties_country <- wine_ratings_clean %>% 
+    select(country,variety) %>% 
+    filter(complete.cases(.)) %>% 
+    count(country,variety,sort=TRUE) %>% 
+    head(20)
+
+
+```
+
+## Chord diagram
+
+
+
+```{r}
+# install.packages("circlize")
+library(circlize)
+# RColorBrewer::display.brewer.all()
+pallete_colors <- RColorBrewer::brewer.pal(n=8,"Set3")
+grid.col = c(Argentina = pallete_colors[1],
+             Portugal = pallete_colors[2],
+             Germany = pallete_colors[3],
+             US = pallete_colors[4],
+             France = pallete_colors[5],
+             Italy = pallete_colors[6])
+
+#https://www.color-hex.com/color-palette/74955
+#https://www.color-hex.com/color-palette/59373
+
+# grid.col = c(Argentina = "#842896",
+#              Portugal = "#c099b8",
+#              Germany = "#927498",
+#              US = "#653e52",
+#              France = "#6c003a",
+#              Italy = "#9c2b48")
+
+#eebed8 	(238,190,216)
+	#c099b8 	(192,153,184)
+	#927498 	(146,116,152)
+	#7f3a69 	(127,58,105)
+	#6c003a 	(108,0,58)
+
+
+top_20_varieties_country_2 <- top_20_varieties_country %>% 
+    mutate(variety=
+               if_else(variety=="Bordeaux-style Red Blend",
+        "Bordeaux-style\nRed Blend",
+        if_else(variety=="Cabernet Sauvignon",
+                "Cabernet\nSauvignon",
+                variety)))
+
+chordDiagram(top_20_varieties_country_2, 
+annotationTrack = "grid", 
+preAllocateTracks = list(track.height = 0.1),
+grid.col = grid.col)
+
+
+panel_fun_1 <- function(x, y) {
+  xlim = get.cell.meta.data("xlim")
+  ylim = get.cell.meta.data("ylim")
+
+  sector.name = get.cell.meta.data("sector.index")
+
+  circos.text(mean(xlim), ylim[1] + .1, sector.name,
+              facing = "clockwise", niceFacing = TRUE,
+              adj = c(0, 0.5))
+
+  circos.axis(h = "top", labels.cex = 0.5,
+              major.tick.percentage = 0.2,
+              sector.index = sector.name, 
+              track.index = 2)
+}
+#https://jokergoo.github.io/circlize_book/book/the-chorddiagram-function.html
+
+# https://rstudio-pubs-static.s3.amazonaws.com/145337_0ecf43312d7b42aaa6b4687649915879.html
+panel_fun_2 <-  function(x, y) {
+  xlim = get.cell.meta.data("xlim")
+  xplot = get.cell.meta.data("xplot")
+  ylim = get.cell.meta.data("ylim")
+  sector.name = get.cell.meta.data("sector.index")
+  if(abs(xplot[2] - xplot[1]) < 10) {
+    circos.text(mean(xlim), ylim[1], sector.name, facing = "clockwise",
+                niceFacing = TRUE, adj = c(0, 0.5))
+  } else {
+    circos.text(mean(xlim), ylim[1], sector.name, facing = "inside",
+                niceFacing = TRUE, adj = c(0.5, 0))
+  }
+}
+
+circos.trackPlotRegion(track.index = 1,
+                       panel.fun = panel_fun_2,
+bg.border = NA)
+# RColorBrewer::display.brewer.all()
+title(main = "Top Countries & wine Varieties",sub = "#TidyTuesday")
+
+```
+
+#tweet: 
+
+https://twitter.com/jspairani/status/1135403749416067073
+
+
+# communicate
+
+well chord diagram finally but i really dont like the syntax :/
+
+love the customization.
+
+here some usefull links: 
+
+- https://jokergoo.github.io/circlize_book/book/the-chorddiagram-function.html
+
+- https://rstudio-pubs-static.s3.amazonaws.com/145337_0ecf43312d7b42aaa6b4687649915879.html
+
+also some palettes: but didnt use em in the final version.
+
+- https://www.color-hex.com/color-palette/74955
+- https://www.color-hex.com/color-palette/59373
