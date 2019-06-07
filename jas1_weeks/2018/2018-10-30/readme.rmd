@@ -73,9 +73,9 @@ r_downloads_year.csv - A year's worth of R language downloads from RStudio CRAN 
 
 
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
-tidy_cran_r_raw <- readr::read_csv(here::here("data","2018-10-30","r-downloads.csv"))
-year_cran_r_raw <- readr::read_csv(here::here("data","2018-10-30","r_downloads_year.csv"))
-
+tidy_cran_r_raw <- readr::read_csv(here::here("data","2018","2018-10-30","r-downloads.csv"))
+year_cran_r_raw <- readr::read_csv(here::here("data","2018","2018-10-30","r_downloads_year.csv"))
+glimpse(year_cran_r_raw)
 glimpse(tidy_cran_r_raw)
 ```
 tidy cran: got ~5k vars its easy to work with
