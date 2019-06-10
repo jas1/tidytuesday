@@ -1,0 +1,155 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-06-04 ramen ratings!"
+author: "julio"
+date: "2019-06-09"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-06-04 ramen ratings!
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+ramen ratings!
+
+### objectives:
+
+- try to do what drob has done last week
+- https://www.youtube.com/watch?v=AQzZNIyjyWM
+
+
+## details:
+
+- after seing the dataset saw that there is no description that can be related with the noodles. so i got to change the obejctive.
+
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(tidyverse)
+
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+library(ggbeeswarm)# install.packages('ggbeeswarm')
+# 
+# library(rworldxtra) # para datos iso3, segun gabo
+# library(sf)
+
+# devtools::install_github('rensa/ggflags')
+# library(ggflags) # https://github.com/rensa/ggflags
+
+# library(widyr) # for pairwise core
+# library(ggraph) # for graph drawing
+# library(igraph)  # for graph managing
+
+# install.packages("waffle")
+# devtools::install_github("hrbrmstr/waffle")
+# library(waffle)
+# library(countrycode)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ramen_ratings <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-04/ramen_ratings.csv")
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(ramen_ratings)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ramen_ratings %>% skimr::skim()
+
+# nobel_winner_all_pubs$
+```
+
+can se reviews by brand / variety / style / country, and avg that.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ramen_ratings_avg_all <- ramen_ratings %>% 
+    group_by(country,brand,style,variety) %>% 
+    summarise(amount_ratings=n(),avg_rating=mean(stars))
+
+ramen_ratings_avg_all %>% ungroup() %>%  count(amount_ratings)
+```
+
+wow that was unexpected !, a lot of ratinws with 1 rating, and just 20 raitings with 2 rates.
+
+we cannot take that detail so we got to group more 
+ill just go for 
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ramen_ratings_avg_by_everything_but_variety <- ramen_ratings %>% 
+    group_by(country,brand,style) %>% 
+    summarise(amount_ratings=n(),avg_rating=mean(stars))
+
+# ramen_ratings_avg_by_everything_but_variety %>% ungroup() %>%  count(amount_ratings) %>%  filter()
+
+ramen_ratings_avg_by_everything_but_variety %>%  ungroup() %>% 
+    count(brand) # 46
+
+ramen_ratings_avg_by_everything_but_variety %>%  ungroup() %>% 
+    count(country) # 44 countries
+
+ramen_ratings_avg_by_everything_but_variety %>%  ungroup() %>% 
+    count(style) # 9 styles
+```
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+color_breaks <- c(0,1,2,3,4,5)
+
+beeswarm_test <- ramen_ratings_avg_by_everything_but_variety %>% 
+    ungroup() %>% 
+    mutate(country=fct_reorder(country,amount_ratings)) %>% 
+    mutate(style=fct_reorder(style,amount_ratings)) %>% 
+    ggplot(aes(x=country,y=amount_ratings,colour=avg_rating,label=brand))+
+    geom_beeswarm(cex=1.2,groupOnX=FALSE,alpha=0.5)+
+    scale_colour_gradient2(low = "red", mid = "white", high = "blue",
+                           midpoint = 2.5, breaks = color_breaks) +
+    coord_flip()+
+    facet_grid(.~style)+
+    labs(title="Brand Popularity Rating by Country and Style",
+         subtitle = "# of ratings + avg rating",caption = "#tidytuesday",
+         x="",y = "# ratings",colour="Avg. Rating")
+
+ggsave(plot = beeswarm_test,filename = "beeswarm_test.png",height = 14,width = 14)
+
+
+# plotly::ggplotly(beeswarm_test)
+
+
+```
+
+things got better as we get more reviews per item, nevertheless there are a lot of reviews spread.
+
+#tweet: 
+
+2019-06-04 #TidyTuesday #rstats ramen ratings! Brand Popularity Rating by Country and Style. I used plotly to interact with plot. can see USA has the most styles. 2 NA styles are: Unif at taiwan and Kamfen at china. Pack is the most common presentation.
+
+https://twitter.com/jspairani/status/1137894754220466177
+
+# communicate
+
+well i was aiming to drobs wine like stuff but the dataset was not that complete. 
+nevertheless can do something in the short time :D
+
