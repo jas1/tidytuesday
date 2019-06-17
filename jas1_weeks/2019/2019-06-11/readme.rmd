@@ -1,0 +1,216 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-06-11 meteorites !"
+author: "julio"
+date: "2019-06-11"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-06-11 meteorites !
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+meteorites
+
+
+### objectives:
+
+test cross it with population of places.
+so you can have places that have not been explored for meteorites inpacts
+
+- population can be extrated from gapminder
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(tidyverse)
+
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+meteorites <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-11/meteorites.csv")
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(meteorites)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+meteorites %>% skimr::skim()
+
+# nobel_winner_all_pubs$
+```
+
+can see that several missing vaues exist, as want to get this quickly done, ill just ignore them.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+meteorites_complete <- meteorites %>% filter(complete.cases(meteorites))
+glimpse(meteorites_complete)
+skimr::skim(meteorites_complete)
+```
+
+ok now go tto check countries in lat longs.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+library(rgdal)
+library(geojsonsf)#;install.packages("geojsonsf")
+library(sf)
+library(sp)
+library(spatialEco)
+
+
+# world_ggplot <- ggplot2::map_data("world")
+# https://gis.stackexchange.com/questions/230608/creating-an-sf-object-from-the-maps-package
+world_sf <- sf::st_as_sf(maps::map("world", plot = FALSE, fill = TRUE))
+
+meteor_points <- st_as_sf(meteorites_complete, coords = c("long", "lat"))
+st_crs(meteor_points) <- st_crs(world_sf)
+
+#https://stackoverflow.com/questions/3647744/intersecting-points-and-polygons-in-r
+# library(spatialEco)#; install.packages("spatialEco")
+meteors_by_country <- point.in.poly(meteor_points, world_sf)
+
+
+meteors_country_sf <- st_as_sf(meteors_by_country) %>% 
+    rename(country=ID,
+           meteor_name=name)
+
+meteors_country_summary <- meteors_country_sf %>% 
+    group_by(country) %>% 
+    summarise(total_meteors=n()) %>% 
+    mutate(binify=case_when(total_meteors >= 15000 ~ "+15k",
+                            total_meteors >= 5000 & total_meteors < 15000 ~ "5k - 15k",
+                            total_meteors >= 1000 & total_meteors < 5000 ~ "1k - 5k",
+                            total_meteors >= 500 & total_meteors < 1000 ~ "500 - 1k",
+                            total_meteors >= 100 & total_meteors < 500 ~ "100 - 500",
+                            total_meteors < 100 ~ "< 100")) %>% 
+    st_set_geometry(NULL)
+
+meteor_country_map <- world_sf %>% 
+    left_join(meteors_country_summary, 
+               by = c("ID"="country"))
+
+```
+
+
+
+```{r}
+
+meteor_variability_bin <- meteors_country_summary
+
+        # filter(total_meteors<1000) %>% 
+meteor_variability_bin %>% 
+    ggplot(aes(y=total_meteors,x=binify,label=country))+
+    geom_boxplot()
+    # ggrepel::geom_label_repel()
+    # geom_polygon(aes(long, lat, group = group),
+    #              fill = "#FFFFFF", color = "#505050", data = mundo,
+    #              alpha=0.5) 
+meteor_variability
+```
+
+```{r}
+
+# ggplto colors
+# https://www.datanovia.com/en/blog/ggplot-theme-background-color-and-grids/
+# chorolplet na values
+# https://stackoverflow.com/questions/16220812/how-do-i-change-the-na-color-from-gray-to-white-in-a-ggplot-choropleth-map
+
+# meteor_country_map$binify <- factor(meteor_country_map$binify,levels = c("+15k","1k - 5k","500 - 1k","100 - 500","< 100"))
+meteor_country_map$binify <- fct_rev(factor(meteor_country_map$binify,levels = c("+15k","1k - 5k","500 - 1k","100 - 500","< 100")))
+
+
+
+
+n_meteors_country <- meteor_country_map %>% 
+    # filter(total_meteors<5000) %>% 
+    ggplot()+
+    geom_sf(aes(fill=binify),color=NA)+#+
+    # scale_fill_brewer(palette = "YlGnBu",na.value="grey")+
+    scale_fill_brewer(palette = "PuBu",na.value="grey")+
+    # scale_fill_viridis_d(na.value="grey")+
+    theme( panel.border = element_blank(),
+      panel.background = element_blank())+
+    labs(title="Amount of meteors by country",
+         fill="# meteors",
+         caption="#tidytuesday")
+
+n_meteors_country
+
+ggsave(n_meteors_country,filename = "n_meteors_country.png",width = 10,height = 5)
+
+```
+
+# population
+
+as is accumulated values, just get the last as last meteor year near to gapminder data
+
+```{r}
+# 2007
+# gapminder::gapminder %>% select(country,pop,year,) %>%  pull(year) %>% max()
+
+# 2013
+# meteorites_complete %>% arrange(desc(year))  pull(year)  %>% 
+library(wbstats)
+# install.packages("wbstats")
+new_cache <- wbcache()
+str(wb_cachelist, max.level = 1)
+unemploy_vars <- wbsearch(pattern = "Total population")
+
+```
+
+
+
+
+
+# bivariate population / meteors
+
+
+things got better as we get more reviews per item, nevertheless there are a lot of reviews spread.
+
+#tweet: 
+
+2019-06-11 #TidyTuesday #rstats Meteors! Made meteors by country/region. Can see that antartica has more impacts, 
+would be interesting crossing with region size, and population. As more people might find easily more meteors.
+may be some bivarate color palette map ... next time :p 
+
+https://twitter.com/jspairani/status/1137894754220466177
+
+# communicate
+
+well i was aiming to cross with gapminder or other population / size data, too much time spent. 
+
+places to ge tthe data: 
+- gapminder: ended 2007
+- other: 
+https://cran.r-project.org/web/packages/wbstats/vignettes/Using_the_wbstats_package.html
+https://population.un.org/wpp/Download/Standard/Population/
+
+
+
