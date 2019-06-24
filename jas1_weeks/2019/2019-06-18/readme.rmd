@@ -1,0 +1,167 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-06-18 xmas birds"
+author: "julio"
+date: "2019-06-11"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-06-18 xmas birds !
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+xmas birds
+
+
+### objectives:
+
+check the data and do something.
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+bird_counts <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-18/bird_counts.csv")
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(bird_counts)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+bird_counts %>% skimr::skim()
+
+```
+
+can see several missing on how many counted by hour, and total hours.
+will omit the missing val columns
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+bird_counts %>% 
+    select(species_latin,year,how_many_counted) %>% 
+    group_by(species_latin,year) %>% 
+    summarise(total_how_many_counted=sum(how_many_counted), total_obs=n()) %>% 
+    filter(total_obs >1)
+
+```
+
+can see that there are no multiple inputs by species / year.
+so every year have the total amount of species.
+so lets take a look to how much species by year
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+bird_counts %>% 
+    select(species_latin,year,how_many_counted) %>% 
+    group_by(year) %>% 
+    summarise(total_how_many_counted=sum(how_many_counted), total_species_obs=n())  %>% 
+    filter(total_species_obs != 199)
+
+```
+also can see that every species have an input each year. at least with 0 value.
+as we dont want the zeroes we want the total species, lets ommit the how many counted == 0
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+total_species_by_year <- bird_counts %>% 
+    select(species_latin,year,how_many_counted) %>% 
+    filter(how_many_counted > 0) %>% 
+    group_by(year) %>% 
+    summarise(total_counted=sum(how_many_counted), total_species_obs=n()) %>% 
+    mutate(counted_vs_species=total_counted/total_species_obs) %>% 
+    gather(time_series,value,-year) %>% 
+    mutate(xmas_date=lubridate::as_date(paste0(year,"-12-25")))
+
+```
+
+
+# 3 series , 
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+
+# for_labels <- lubridate::year(total_species_by_year$xmas_date)
+
+series_plot <- total_species_by_year %>% 
+    
+    ggplot(aes(x = xmas_date, y = value,color=time_series))+
+    geom_line()+
+    scale_x_date(date_breaks = "5 years",date_labels = "%Y")+
+    facet_grid(time_series~.,scales = "free_y")+
+    theme_light()+
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle=90))+
+    labs(x="",y="",
+         title="Progression over time of Christmas Bird Counts from Hamilton-Ontario",
+         subtitle=paste0(min(total_species_by_year$year),"-",max(total_species_by_year$year)),
+         caption = "#TidyTuesday") 
+
+
+series_plot %T>% 
+    print() %T>%
+    ggsave(plot=.,"xmas_birds_ontario.png",width = 10,height = 7)
+    
+
+```
+
+
+# idea , do prophet stuff to see how it evolves over time.
+
+well not enough time today to do this.
+will be next time :p 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(prophet)
+# 
+
+
+```
+
+
+
+#tweet: 
+
+2019-06-18 #TidyTuesday #rstats Xmas Birds Hamilton-Ontario! 
+something simpel this time, saw the time evolution of the bird counts, then thested the %T>% operator, posted recently by: 
+@andrewheiss here: https://twitter.com/andrewheiss/status/1141853448591200256
+next time: would be nice to do some forecast for 2018/2019 and then check with the actual values =).
+
+https://twitter.com/jspairani/status/1142957944310386688
+
+# communicate
+
+- not much time , so jus tchecked the data do some ggplot & teste dthe %T>% operator. its amazing :D
+
+
