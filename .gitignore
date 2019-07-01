@@ -48,3 +48,6 @@ jas1_weeks/**/report_files/*
 #jas1_weeks/2018-11-06/tmp/*
 
 tidytuesday_github.Rproj
+
+# ignore temporal files of animations
+jas1_weeks/**/anim/*

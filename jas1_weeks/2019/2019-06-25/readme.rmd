@@ -1,0 +1,365 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-06-25 UFO's world"
+author: "julio"
+date: "2019-06-25"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-06-25 UFO's world !
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+
+UFO's world
+
+### objectives:
+
+check the data and do something.
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+# library(sf)
+library(dplyr)
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+library(rayshader)
+
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ufo_sightings <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-25/ufo_sightings.csv")
+
+ufo_sightings_local <- readr::read_csv(here::here("data","2019","2019-06-25","ufo_sightings.csv")) %>% 
+    mutate(date_time_parsed=lubridate::mdy_hm(date_time)) %>%  # remember to see data dictionary if available :p 
+    mutate(year=lubridate::year(date_time_parsed)) %>% 
+    mutate(decade=floor(year/10)*10) %>% 
+    mutate(end_year_decade=lubridate::dmy(paste0("31-12-",decade)))
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(ufo_sightings_local)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ufo_sightings_local %>% skimr::skim()
+
+```
+
+well we got long, lat, can do something mappy . nevertheless got countries  missing, making it difficult make a map with those. 
+
+seeing which city area is related to contury to see if we can see some relation of extraction that can be done.
+
+also there is one with no latitude :/
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+ufo_sightings_local %>%
+    filter(is.na(country) ) %>%
+    select(city_area)
+
+
+
+```
+somehting can be done with some, but its quite difficult to impute all countries. 
+so will use non missing values, missing values wont be used.
+
+other stuff that can be done. its see wich kind of ufo sighting have more movment over time. to see if there is some change on that.
+
+## decade with "field country"
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+year_country <- ufo_sightings_local %>%  
+    filter (!is.na(country)) 
+
+
+
+# year_country %>% filter(is.na(year))
+
+count_by_year_country <- year_country %>% 
+    group_by(end_year_decade,country) %>% 
+    summarise(count=n())
+
+ufo_sightings_by_country_data <- count_by_year_country %>%
+    
+    ggplot(aes(x=end_year_decade,y=count,color=country)) +
+    geom_line()+
+    scale_x_date(date_breaks = "5 years",date_labels = "%Y")+
+    facet_grid(country~.,scales = "free_y")+
+    labs(title="UFO Sightings by decade based country on data; 1910 - 2014", 
+         x="",y="# UFO Sightings",
+         subtitle = "Where country is not NA",
+         caption="#tidytuesday")+
+    
+    theme_light()+
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle=90))
+# 
+# ggsave(ufo_sightings_by_country_data,filename = "ufo_sightings_by_country_data.png",width = 10,height = 5)
+
+```
+
+ok , more usefull information will come from geoposition and countrie sor continents
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(rgdal)
+library(geojsonsf)#;install.packages("geojsonsf")
+library(sf)
+library(sp)
+library(spatialEco)
+
+
+# world_ggplot <- ggplot2::map_data("world")
+# https://gis.stackexchange.com/questions/230608/creating-an-sf-object-from-the-maps-package
+world_sf <- sf::st_as_sf(maps::map("world", plot = FALSE, fill = TRUE))
+
+
+ufo_complete_points <- ufo_sightings_local %>% # complete lat long
+    filter(!is.na(latitude) & !is.na(longitude))
+    
+
+ufo_sight_points <- st_as_sf(ufo_complete_points, coords = c("longitude", "latitude"))
+
+st_crs(ufo_sight_points) <- st_crs(world_sf)
+
+#https://stackoverflow.com/questions/3647744/intersecting-points-and-polygons-in-r
+# library(spatialEco)#; install.packages("spatialEco")
+
+ufo_by_country  <- point.in.poly(ufo_sight_points, world_sf)
+
+
+ufo_country_sf <- st_as_sf(ufo_by_country) %>% 
+    rename(country=ID)
+
+
+```
+
+
+# ggplot map
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ufo_summary <- ufo_country_sf %>% 
+    group_by(country.1) %>% 
+    summarise(total_ufos=n()) %>% 
+    st_set_geometry(NULL)
+
+
+ufo_country_map <- world_sf %>% 
+    left_join(ufo_summary, 
+               by = c("ID"="country.1"))
+
+```
+
+
+
+## decade with "geolocation"
+```{r}
+year_country_geoloc <- ufo_country_sf %>% 
+    st_set_geometry(NULL)
+
+count_by_year_country_geoloc <- year_country_geoloc %>% 
+    group_by(end_year_decade,country.1) %>% 
+    summarise(count=n())
+
+
+filter_countries_at_least_5_years <- count_by_year_country_geoloc %>% 
+    ungroup() %>% 
+    count(country.1) %>% 
+    filter(n > 5) %>% pull(country.1)
+
+ufo_sightings_by_country_data_geoloc <- count_by_year_country_geoloc %>%
+    filter(country.1%in%filter_countries_at_least_5_years) %>% 
+    ggplot(aes(x=end_year_decade,y=count,color=country.1)) +
+    geom_line()+
+    geom_point()+
+    scale_x_date(date_breaks = "5 years",date_labels = "%Y")+
+    facet_grid(country.1~.,scales = "free_y")+
+    labs(title="UFO Sightings by decade by country ( geolocation ) 1910 - 2014", 
+         x="",y="# UFO Sightings",
+         subtitle = "Where latitud & longitude are not NA, AND at least 5 reports in diferent years",
+         caption="#tidytuesday")+
+    theme_light()+
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle=90))
+# 
+# ggsave(ufo_sightings_by_country_data_geoloc,filename = "ufo_sightings_by_country_data_imputed_crossing.png",width = 10,height = 20)
+```
+
+
+## map 2d
+
+```{r}
+
+
+# range(year_country$year)
+ufo_country_map_plot <- ufo_country_map %>% 
+    # filter(total_meteors<5000) %>% 
+    ggplot()+
+    geom_sf(aes(fill=log(total_ufos)+1),color=NA)+#+
+    # scale_fill_brewer(palette = "YlGnBu",na.value="grey")+
+    # scale_fill_brewer(palette = "PuBu",na.value="grey")+
+    # scale_fill_viridis_d(na.value="grey")+
+    scale_fill_viridis_c(na.value="grey")+
+    theme( panel.border = element_blank(),
+      panel.background = element_blank())+
+    labs(title="Total amount of Ufo's by country",
+         subtitle="# UFO's (log of total sights) ; 1910 - 2014",
+         fill="# UFO's",
+         caption="#tidytuesday")
+ufo_country_map_plot
+# ggsave(ufo_country_map_plot,filename = "ufo_country_map_plot.png",width = 10,height = 5)
+
+
+# n_meteors_country
+    
+# pp = ggplot(data, aes(x=x, y=y)) +
+#   geom_hex(bins = 20, size = 0.5, color = "black") +
+#   scale_fill_viridis_c(option = "C")
+# plot_gg(pp, width = 4, height = 4, scale = 300, multicore = TRUE)
+
+
+```
+
+# just another rayshader test :D
+
+```{r}
+
+count_by_decade_country_geoloc <- year_country_geoloc %>% 
+    group_by(decade,country.1) %>% 
+    summarise(count=n())
+
+
+ufo_sightings_by_country_data_geoloc_rayshader <- count_by_decade_country_geoloc %>%
+    filter(country.1%in%filter_countries_at_least_5_years) %>% 
+    # mutate(country.1=fct_reorder2(country.1,decade,count)) %>%
+    ggplot(aes(x=decade ,y=country.1,fill=log(count))) +
+    geom_tile(color="black")+
+    scale_fill_viridis_c(option = "C")+
+    scale_x_continuous(breaks = seq(from = 1900,to=2015,by = 10),
+                       labels = seq(from = 1900,to=2015,by = 10))+
+    labs(title="UFO Sightings by decade by country\n( geolocation ) 1910 - 2014", 
+         x="Decade",y="",
+         fill="Log of\n# UFO Sightings",
+         subtitle = "Where latitud & longitude are not NA,\nAND at least 5 reports in diferent years\nNA country are related to No Matching area points on Map",
+         caption="#tidytuesday")+
+    theme_light()+
+    theme(axis.text.x = element_text(angle=90))
+
+ggsave(ufo_sightings_by_country_data_geoloc_rayshader,filename = "ufo_sightings_by_country_data_imputed_crossing_for_ray_shader.png",width = 5,height = 5)
+    
+
+
+# plot_gg(ufo_sightings_by_country_data_geoloc_rayshader, 
+#         width = 5, height = 5, scale = 300, multicore = TRUE)
+# render_camera(fov = 70, zoom = 0.5, theta = 130, phi = 35)
+# render_camera(fov = 70, zoom = 0.5, theta = 130, phi = 35)
+# render_snapshot(clear = TRUE)
+
+# http://blog.schochastics.net/post/mapping-nba-shot-locations/
+plot_gg(ufo_sightings_by_country_data_geoloc_rayshader, width = 5, height = 5, multicore = TRUE, scale = 250, 
+        zoom = 0.7, theta = 10, phi = 30, windowsize = c(800, 800))
+
+phivec <- 20 + 70 * 1/(1 + exp(seq(-5, 10, length.out = 180)))
+phivecfull <- c(phivec, rev(phivec))
+thetavec <- 90 * sin(seq(0,359,length.out = 360) * pi/180) #+270
+zoomvec <- 0.5 + 0.5 * 1/(1 + exp(seq(-5, 10, length.out = 180)))
+zoomvecfull <- c(zoomvec, rev(zoomvec))
+
+for(i in 116:360) {
+  render_camera(theta = thetavec[i],phi = phivecfull[i],zoom = zoomvecfull[i])
+  # render_snapshot(paste0("anim/frame", i, ".png"))
+    render_snapshot(here::here("jas1_weeks","2019","2019-06-25",
+                               "anim",paste0("frame", i, ".png")))
+}
+
+#Run this command in the command line using ffmpeg to stitch together a video:
+#ffmpeg -framerate 60 -i frame%d.png -vcodec libx264 raymovie.mp4
+
+#And run this command to convert the video to post to the web:
+#ffmpeg -i raymovie.mp4 -pix_fmt yuv420p -profile:v baseline -level 3 -vf scale=-2:-2 rayweb.mp4
+
+
+```
+
+    
+
+
+
+# idea , do prophet stuff to see how it evolves over time.
+
+well not enough time today to do this.
+will be next time :p 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(prophet)
+# 
+
+
+```
+
+
+
+#tweet: 
+
+2019-06-25 #TidyTuesday #rstats UFO Sightings! 
+Time lines and map! geolocation is amazing for getting missing countries :D
+and yet another #rayshader , thanks @tylermorganwall for outstanding job !
+also thanks: @schochastics for cool work & code :D
+
+https://twitter.com/jspairani/status/1145536192605315072
+
+https://twitter.com/jspairani/status/1145536194576617472
+
+# communicate
+
+well got stubborn with getting a rayshader done. 
+also with getting the countries in a better way. 
+thats all for today. 
+
+would have been awsome to do something like : 
+https://twitter.com/jakekaupp/status/1144063378543038465
+
+as mentioned weeks like crossing population with events spoted ( meteors )
+
+for the bivariate choroplet. 
+also this for may be more relevant data: 
+
+https://twitter.com/whipson3/status/1144063351313588226
+
+( airports near ? may be planes ?)
+
+
+may be next time :D 
+also got to do the #datosdemiercoles :U!
+
+
+
