@@ -1,0 +1,191 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-07-09 Womens World Cup"
+author: "julio"
+date: "2019-06-25"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-07-09 Womens World Cup
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+ 
+ Womens World Cup
+ 
+### objectives:
+
+check the data and do something.
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+# library(sf)
+library(dplyr)
+library(stringr)#;
+library(rebus)#; install.packages('rebus')
+library(tidytext)
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+library(rayshader)
+library(lubridate)
+
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wwc_outcomes <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-09/wwc_outcomes.csv")
+squads <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-09/squads.csv")
+codes <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-09/codes.csv")
+```
+
+# explore data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wwc_outcomes %>% head()
+squads %>% head()
+codes %>% head()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(wwc_outcomes)
+glimpse(squads)
+glimpse(codes)
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wwc_outcomes %>% skimr::skim()
+squads %>% skimr::skim()
+codes %>% skimr::skim()
+
+```
+
+
+# how long ago wwc exists ?
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wwc_outcomes %>% 
+    count(year) %>%
+    mutate(year_date=lubridate::ymd(paste0(year,"-01-15"))) %>% 
+    ggplot(aes(x=year_date,y=n,color=n))+
+    geom_line()+
+    geom_point()+
+    scale_x_date(date_labels = "%Y",date_breaks = "4 years",
+                 limits = c(lubridate::ymd("1989-01-15"),lubridate::ymd("2020-01-15")))+
+    labs(title="# of Countries per WWC edition",
+         x="",y="",color="# countries",
+         caption="#TidyTuesday")
+
+```
+
+# how long ago wwc exists ?
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+wwwwc_outcomes %>% 
+    count(year) %>%
+    mutate(year_date=lubridate::ymd(paste0(year,"-01-15"))) %>% 
+    ggplot(aes(x=year_date,y=n,color=n))+
+    geom_line()+
+    geom_point()+
+    scale_x_date(date_labels = "%Y",date_breaks = "4 years",
+                 limits = c(lubridate::ymd("1989-01-15"),lubridate::ymd("2020-01-15")))+
+    labs(title="# of Countries per WWC edition",
+         subtitle="Womens World Cup",
+
+         x="",y="",color="# countries",
+         caption="#TidyTuesday")
+
+```
+
+# top age distribution by country in 2019
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+# order_sqd <- squads %>% 
+    # group_by(country) %>% 
+    # summarise(median_age_country=median(age),
+    #           max_age_country=max(age),
+    #           min_age_country=min(age),
+    #           iqr_age_country=IQR(age),
+    #           var_age_country=var(age))
+
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+sqd_out_2 <- squads %>% 
+    nest(-country) %>% 
+    mutate(team_data=purrr::map(data,.f=function(data){
+        ret <- data %>%  mutate(is_outlier=is_outlier(age))
+        ret
+    })) %>% 
+    unnest(team_data)
+   
+# 
+# sqd_out <- squads %>% 
+#     mutate(is_outlier=is_outlier(age)) 
+
+team_var <- sqd_out_2 %>% 
+    ggplot(aes(x=fct_reorder(country,age),y=age,
+               fill=country))+
+    geom_boxplot()+
+    ggrepel::geom_label_repel(
+        data          = subset(sqd_out_2, is_outlier),
+        aes(label=paste0(player,"(",age,")")),
+        # hjust=-0.3,
+        # nudge_y = 0.3,
+        segment.size = 0.2
+        # nudge_x      = 0.1,
+        # nudge_x      = -0.35,
+
+    )+
+    coord_flip()+
+    theme(legend.position = "none")+
+    labs(title = "Team Age Variance by Country",
+         subtitle="Womens World Cup 2019 rosters",
+         caption="#TidyTuesday",
+         x="",y="age")
+        
+ggsave(filename = "team_age_variance.png",plot = team_var)
+
+```
+
+
+#tweet: 
+
+2019-07-09 #TidyTuesday #rstats Womens World Cup! 
+Amount of teams by cup & age variance per team.
+
+
+# communicate
+
+well almost there, some errors on the years elapsed label :/.
+
+credit of the bar to: 
+
+https://ogustavo.com/post/dotplot-ggplot/
+
+
+
+
+

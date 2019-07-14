@@ -236,6 +236,11 @@ Explored which are the longer living media franchises.
 
 well almost there, some errors on the years elapsed label :/.
 
+credit of the bar to: 
+
+https://ogustavo.com/post/dotplot-ggplot/
+
+
 
 
 
