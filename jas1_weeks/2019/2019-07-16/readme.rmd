@@ -140,7 +140,7 @@ prediction_plot <- prediction_plot_data %>%
     aes(label=paste0("date:",ds,"\nlast value:",ceiling(value))),
     size=3,show.legend = FALSE,
     nudge_y = -30000,
-    nudge_x = -100)+
+    nudge_x = -10)+
     geom_vline(xintercept = lubridate::as_date(c("2019-07-15",
                                               "2019-07-30",
                                               "2019-08-15",
