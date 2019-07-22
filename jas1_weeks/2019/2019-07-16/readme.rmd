@@ -1,0 +1,190 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-07-22 Womens World Cup"
+author: "julio"
+date: "2019-06-25"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-07-16 r4ds_members
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+ 
+r4ds_members
+ 
+### objectives:
+
+check the data and do something.
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+# library(sf)
+library(dplyr)
+library(stringr)#;
+# library(rebus)#; install.packages('rebus')
+# library(tidytext)
+library(prophet)
+
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+library(lubridate)
+library(ggforce)
+library(ggrepel)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+r4ds_members <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-16/r4ds_members.csv")
+```
+
+# explore data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+r4ds_members %>% head()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+glimpse(r4ds_members)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+r4ds_members %>% skimr::skim()
+
+
+```
+
+
+# time line of messages_posted
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# range(train_data$ds)
+train_data <- r4ds_members %>% 
+    select(date,messages_posted) %>% 
+    rename(ds=date,y=messages_posted)
+
+prophet_model <- prophet(yearly.seasonality = TRUE,
+                   weekly.seasonality = TRUE,
+                   daily.seasonality = TRUE,fit =FALSE )
+
+prophet_model <- add_country_holidays(prophet_model, country_name = 'US')
+
+prophet_model <- fit.prophet(prophet_model, train_data)
+
+# future:
+from_future <- lubridate::as_date("2019-07-01")
+to_future <- lubridate::as_date("2019-09-01")
+future_sequence <- seq(from=from_future,
+                   to = to_future,
+                   by=1)# by 1 day
+
+
+past_and_future_dates <- c(train_data %>% pull(ds),future_sequence)
+
+df_future <- data.frame(ds= past_and_future_dates)
+
+to_september_prediction <- predict(prophet_model,df_future)
+
+
+prophet_plot_components(prophet_model, to_september_prediction)
+
+plot(prophet_model, to_september_prediction)
+
+
+train_data_2 <- train_data %>% 
+    mutate(ts="original") %>% 
+    rename(value=y) %>% 
+    mutate(ds=as.Date(ds))
+
+
+prediction_plot_data <- to_september_prediction %>% 
+    select(ds,trend,yhat) %>%
+    rename(predicted=yhat) %>% 
+    gather(ts,value,-ds) %>%
+    mutate(ds=as.Date(ds)) %>% 
+    union_all(train_data_2) 
+
+
+
+prediction_plot <- prediction_plot_data %>% 
+    ggplot(aes(x=as.Date(ds), y=value,color=ts))+
+    geom_line(alpha=0.8)+
+    geom_vline(xintercept = max(train_data_2$ds),linetype=2,color="red")+
+    ggrepel::geom_label_repel(
+    data = prediction_plot_data %>% 
+        filter(ds==max(train_data_2$ds)) %>% 
+        filter(ts=="original"),
+    aes(label=paste0("date:",ds,"\nlast value:",ceiling(value))),
+    size=3,show.legend = FALSE,
+    nudge_y = -30000,
+    nudge_x = -100)+
+    geom_vline(xintercept = lubridate::as_date(c("2019-07-15",
+                                              "2019-07-30",
+                                              "2019-08-15",
+                                              "2019-08-30")
+                                              ),linetype=2)+
+    ggrepel::geom_label_repel(
+        data = prediction_plot_data %>% 
+            filter(ds%in%lubridate::as_date(c("2019-07-15",
+                                              "2019-07-30",
+                                              "2019-08-15",
+                                              "2019-08-30"))) %>% 
+            filter(ts=="predicted"),
+        aes(label=paste0("date:",ds,"\npredicted:",ceiling(value))),
+        size=3,show.legend = FALSE,nudge_y = -40000)+
+    scale_x_date(date_breaks = "15 days")+
+    theme_light()+
+    theme(axis.text.x=element_text(angle=90))+
+    facet_zoom(  xlim = c(from_future-weeks(2), to_future))+
+    labs(title="R4DS - Slack Community, Messages posted Predicted",
+             subtitle=paste0("from ",from_future," till ",to_future),
+         caption="#TidyTuesday",
+         x="",y="# messages",colour="Time Series")
+   prediction_plot
+   
+  ggsave(plot = prediction_plot,filename = "prediction.png",width = 10,height = 8)
+   
+```
+
+#tweet: 
+
+2019-07-16 #TidyTuesday #rstats R4ds Slack ! 
+Prediction of messages for the following months, 
+highlighted each 15 days from 15/7 with line & label
+and facet_zoom in the zone of interest.
+Enjoy :D
+
+
+# communicate
+
+not the pretiest plot but at least done some modeling & stuff :D
+
+
+
+
+
+
+

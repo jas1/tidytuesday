@@ -101,19 +101,23 @@ wwc_outcomes %>%
 # how long ago wwc exists ?
 ```{r echo=FALSE,message=FALSE,warning=FALSE}
 
-wwwwc_outcomes %>% 
+ww_plot <-  wwc_outcomes %>% 
     count(year) %>%
     mutate(year_date=lubridate::ymd(paste0(year,"-01-15"))) %>% 
-    ggplot(aes(x=year_date,y=n,color=n))+
+    ggplot(aes(x=year_date,y=n,color=n,label=n))+
     geom_line()+
     geom_point()+
+    ggrepel::geom_label_repel()+
     scale_x_date(date_labels = "%Y",date_breaks = "4 years",
                  limits = c(lubridate::ymd("1989-01-15"),lubridate::ymd("2020-01-15")))+
     labs(title="# of Countries per WWC edition",
          subtitle="Womens World Cup",
 
          x="",y="",color="# countries",
-         caption="#TidyTuesday")
+         caption="#TidyTuesday")+
+    theme(legend.position = "none")
+
+ggsave(filename = "participants.png",plot = ww_plot)
 
 ```
 
