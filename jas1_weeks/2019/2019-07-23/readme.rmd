@@ -1,0 +1,157 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-07-23 FAA Wildlife Strike Database"
+author: "julio"
+date: "2019-06-25"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-07-23 FAA Wildlife Strike Database
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+ 
+2019-07-23 FAA Wildlife Strike Database
+ 
+### objectives:
+
+check the data and do ranking
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+# library(sf)
+library(dplyr)
+library(stringr)#;
+# library(rebus)#; install.packages('rebus')
+# library(tidytext)
+library(prophet)
+
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+library(lubridate)
+library(ggforce)
+library(ggrepel)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wildlife_impacts <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-23/wildlife_impacts.csv")
+```
+
+# explore data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wildlife_impacts %>% head()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wildlife_impacts %>% glimpse()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+wildlife_impacts %>% skimr::skim()
+
+
+```
+
+
+# time line of messages_posted
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# wildlife_impacts %>% incident_year,airport
+
+        metric_sym <-rlang::sym("airport")
+        ranking <- seq(from=1,to = 5,by = 1)
+        ret <- wildlife_impacts %>% 
+            count(!!!metric_sym) %>% 
+            arrange(desc(5)) %>% 
+            head(cant) %>% 
+            mutate(rank=ranking) %>% 
+            mutate(metric_value= !!metric_sym)
+
+metric_str <- "airport"#"airport" , "species"
+top_n_num <- 5
+resu <- wildlife_impacts %>% 
+nest(-incident_year) %>% 
+
+
+    mutate(top_n_year=purrr::map(data,
+                                    n_top=top_n_num,
+                                    metric=metric_str,
+                                    .f=function(d,metric,n_top){
+        metric_sym <- rlang::sym(metric)
+        ranking <- seq(from=1,to = n_top,by = 1)
+        ret <- d %>% 
+            filter(airport!="UNKNOWN") %>% 
+            count(!!!metric_sym) %>% 
+            arrange(desc(n)) %>% 
+            head(n_top) %>% 
+            mutate(rank=ranking)
+        ret
+    })) %>% unnest(top_n_year)
+
+glimpse(resu)
+# metrica_sym <-rlang::sym(metrica_s)
+# plot con ranking
+plot_out <- resu %>% 
+    mutate(airport=fct_reorder(airport,rank,.desc = TRUE)) %>% 
+    mutate(rank=as.factor(rank)) %>% 
+    ggplot(aes(x=as.factor(incident_year),y=airport,color=rank,group=rank,label=n))+
+    geom_point()+
+    geom_line(show.legend = FALSE)+
+    theme_light()+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1),
+          axis.text.y = element_text(size = 6))+
+    labs(x="",y="", 
+         title="Top 5 USA Airports with Wildlife Strikes",
+         subtitle="From 1990 to 2018, Airport: Unknown removed.",
+         caption="#TidyTuesday")
+
+plot_out
+
+ggsave(filename = "top5_airports.png",plot = plot_out)
+
+```
+
+#tweet: 
+
+2019-07-23 #TidyTuesday #rstats FAA Wildlife Strike Database ! 
+Top 5 Ranking across the years and how switched places.
+Unknown airport removed.
+Enjoy :D
+
+
+# communicate
+
+ranking recicled & adapted from other stuff done in weekend :)
+
+
+
+
+
+
+
+
