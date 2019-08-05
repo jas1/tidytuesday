@@ -1,0 +1,197 @@
+
+---
+title: "Tidy tuesday challenge: Week 2019-07-30 Video Games Dataset"
+author: "julio"
+date: "2019-08-04"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week  2019-07-30 Video Games Dataset
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+ 
+2019-07-30 Video Games Dataset
+ 
+### objectives:
+
+check the data and do something
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+# library(sf)
+library(dplyr)
+library(stringr)#;
+# library(rebus)#; install.packages('rebus')
+# library(tidytext)
+library(prophet)
+
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+library(lubridate)
+library(ggforce)
+library(ggrepel)
+
+# library
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+video_games <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-30/video_games.csv")
+```
+
+# explore data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+video_games %>% head()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+video_games %>% glimpse()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+video_games %>% skimr::skim()
+
+
+```
+
+
+# longest living popular games in steam ! 
+
+this have to be crossed to game real release date.
+example quake @ 1996, not 2007 , but steam started 2003~2004
+also steam is owned by Valve , creators of half life, early games was more related to them.
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+video_games %>% filter(!is.na(owners) & !is.na(release_date)) %>% 
+    mutate(release_date=lubridate::mdy(release_date)) %>% 
+    filter(str_detect(str_to_lower(game),"quake"))
+
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+games_owners <- video_games %>% filter(!is.na(owners) & !is.na(release_date)) %>% 
+    mutate(release_date=lubridate::mdy(release_date)) %>% 
+    count(owners) %>% 
+        mutate(owners=fct_reorder(owners,n)) %>% 
+        ggplot(aes(x=owners,y=log(n),fill=owners))+
+        geom_col()+
+        coord_flip()+
+    labs(title="Amount of games by quantity of owners, Log scale", 
+         x="#owners",y="Log(#games)", 
+         caption = "#TidyTuesday")
+    # filter(str_detect(str_to_lower(game),"quake"))
+
+ggsave(games_owners,filename = "games_owners.png")
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+explore_boxplot <- video_games %>% filter(!is.na(price) & !is.na(release_date)) %>% 
+    mutate(release_date=lubridate::mdy(release_date)) %>% 
+    mutate(year_release=lubridate::year(release_date)) %>% 
+        ggplot(aes(x=as.character(year_release),y=price,fill=as.character(year_release)))+
+        geom_boxplot()+
+        coord_flip()+
+    labs(title="Games price distribution by year", 
+         x="",y="USD",fill="year", 
+         caption = "#TidyTuesday")
+explore_boxplot
+# plotly::ggplotly(explore_boxplot)
+
+```
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+owner_levels_vec <- c("100,000,000 .. 200,000,000",
+"50,000,000 .. 100,000,000",
+"20,000,000 .. 50,000,000",
+"10,000,000 .. 20,000,000",
+"5,000,000 .. 10,000,000",
+"2,000,000 .. 5,000,000",
+"1,000,000 .. 2,000,000",
+"500,000 .. 1,000,000",
+"200,000 .. 500,000",
+"100,000 .. 200,000",
+"50,000 .. 100,000",
+"20,000 .. 50,000",
+"0 .. 20,000")
+owner_levels <- data.frame(owners=owner_levels_vec,owners_order=seq(1,length(owner_levels_vec),1),stringsAsFactors = FALSE)
+relevel_owners <- video_games %>% 
+    left_join(owner_levels,by = c("owners")) %>% 
+    mutate(label_plot=if_else(is.na(price),paste0("[NA]:",game),game)) %>% 
+    mutate(price=if_else(is.na(price),0.001,price)) %>% 
+    mutate(release_date=lubridate::mdy(release_date)) %>% 
+    mutate(year_release=lubridate::year(release_date))
+
+
+relevel_owners_plot <- relevel_owners %>%
+    
+    mutate(owners=fct_reorder(owners,owners_order)) %>% 
+    ggplot(aes(x=log(median_playtime),
+                   y=log(price),
+                   color=owners,
+               label=label_plot))+
+        geom_point()+
+    labs(title="Games price vs median playtime (log / log)",
+         subtitle="better to explore interactively with plotly\nNA price under-4 log(price)",
+    x="log(median playtime) (minutes)",y="log(price)(usd)" ,colour="# of owners",
+    caption = "#TidyTuesday")
+
+plotly::ggplotly(relevel_owners_plot)
+
+ggsave(relevel_owners_plot,filename = "relevel_owners_plot.png")
+
+```
+
+
+#tweet: 
+
+2019-07-30 #TidyTuesday #rstats Steam Video Games Dataset ! 
+just explored a little price vs time spent in game.
+Better to check it interactively with plotly.
+can see NA price games, had a wide range of playtime & popularity.
+
+
+
+# communicate
+
+just checked spent money vs spent time.
+
+
+
+
+
+
+
