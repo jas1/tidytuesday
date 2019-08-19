@@ -1,0 +1,239 @@
+
+
+---
+title: "Tidy tuesday challenge: Week 2019-08-13 Roman Emperors"
+author: "julio"
+date: "2019-08-04"
+output: html_document
+---
+
+# Tidy tuesday challenge:  Week 2019-08-13 Roman Emperors
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+ 
+ Week 2019-08-06 Bob Ross
+ 
+### objectives:
+
+
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+# library(sf)
+library(dplyr)
+library(stringr)#;
+# library(rebus)#; install.packages('rebus')
+# library(tidytext)
+library(prophet)
+
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+library(lubridate)
+library(ggforce)
+library(ggrepel)
+
+# library(arules)#install.packages('arules')
+# library(arulesViz)#install.packages('arulesViz')
+# library(igraph)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+emperors <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-08-13/emperors.csv")
+```
+
+# explore data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+emperors %>% head()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+emperors %>% glimpse()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+emperors %>% skimr::skim()
+
+
+```
+
+we see some emperors got missing Day of birth.
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+emperors %>% filter(is.na(birth))
+```
+
+ill search & impute: 
+
+imputing march 3 for not know date 
+
+Florian: August 19, 232 AD, Terni, Italy >> 19/08/232 ( wikipedia )
+Numerian: Born: 254 AD >> 3/3/254 ( wikipedia + impute )
+Carinus: Born: 257 AD, Dalmatia, Croatia >> 3/3/257 ( wikipedia + impute )
+Severus II (Valerius Severus) :  around the middle of the third century AD >> 3/3/250 ( wikipedia + impute )
+Vetranio: sometime in the late 3rd century >> 3/3/290 (wikipedia + impute)
+
+imputing values and added imputed col
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+emperors_processed <- emperors %>% 
+    mutate(is_birth_imputed=is.na(birth)) %>% 
+    mutate(birth_imputed=case_when(
+        index==44 ~ { #Florian: August 19, 232 AD, Terni, Italy >> 19/08/232 ( wikipedia )
+        lubridate::dmy("19/08/0232")
+            },
+        index==47 ~ { # Numerian: Born: 254 AD >> 3/3/254 ( wikipedia + impute )
+            lubridate::dmy("03/03/0254")
+        },
+        index==48 ~ { #Carinus: Born: 257 AD, Dalmatia, Croatia >> 03/03/0257 ( wikipedia + impute )
+            lubridate::dmy("03/03/0257")
+        },
+        index==53 ~ { #Severus II (Valerius Severus) :  around the middle of the third century AD >> 03/03/250 ( wikipedia + impute )
+            lubridate::dmy("03/03/0250")
+        },
+        index==61 ~ { #Vetranio: sometime in the late 3rd century >> 3/3/290 (wikipedia + impute)
+            lubridate::dmy("03/03/0290")
+        },
+        TRUE ~ birth
+    )) %>% 
+    mutate(impute_desc=case_when(
+        index==44 ~ { "19/08/232\n( wikipedia )" },
+        index==47 ~ { "Born: 254 AD\nimputed: 03/03/0254\n( wikipedia + impute )" },
+        index==48 ~ { "Born: 257 AD\nimputed: 03/03/0257\n( wikipedia + impute )"},
+        index==53 ~ { "around the middle of the third century AD\nimputed: 03/03/0250\n( wikipedia + impute )"},
+        index==61 ~ { "sometime in the late 3rd century\nimputed: 03/03/0290\n(wikipedia + impute)"},
+        TRUE ~ "--"
+    ))
+
+emperors_processed %>% select(name,birth,birth_imputed,is_birth_imputed,impute_desc) %>% 
+    filter(is.na(birth))
+```
+
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+gathered_emperors <- emperors_processed %>% 
+    select(birth_imputed,death,is_birth_imputed,impute_desc,reign_start,reign_end,
+           name_full,name,dynasty,era) %>% 
+    mutate(dynasty=factor(name)) %>% 
+    mutate(dynasty=factor(dynasty)) %>% 
+    gather(date_type,date,-name_full,-name,-dynasty,-era,-is_birth_imputed,-impute_desc) %>% 
+    mutate(date_span=if_else(date_type %in% c("birth_imputed","death"), "life","reign" ))
+
+gathered_emperors %>% glimpse()
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+dynasty_geom_df <- emperors_processed %>% group_by(dynasty) %>% 
+    summarise(min_date=min(reign_start),max_date=max(reign_end),
+              first=head(name,1),last=tail(name,1),date_span="",name="")
+
+era_geom_df <- emperors_processed %>% group_by(era) %>% 
+    summarise(min_date=min(reign_start),max_date=max(reign_end),
+              first=head(name,1),last=tail(name,1),date_span="",name="")
+
+
+# geom_rect(xmin=dynasty_geom_df[1,]$min_date,
+#           xmax=dynasty_geom_df[1,]$max_date,
+#           ymin=dynasty_geom_df[1,]$first, ymax=dynasty_geom_df[1,]$last)+
+# geom_rect(xmin=dynasty_geom_df$min_date, xmax=dynasty_geom_df$max_date,
+#           ymin=dynasty_geom_df$first, ymax=dynasty_geom_df$last,
+#           fill=dynasty_geom_df$dynasty)+
+# scale_y_date(date_breaks = "1 year")+
+plot_emperor_life <- gathered_emperors %>% 
+    mutate(name=fct_reorder(name,date)) %>% 
+    ggplot(aes(x=name,y=date,fill=date_span,colour=date_span)) + 
+    geom_line()+
+    geom_label_repel(data = gathered_emperors %>%
+                        filter(is_birth_imputed) %>%
+                        filter(date_type=="birth_imputed"),
+                    aes(label=paste0(name,": ",impute_desc)),
+                    nudge_y= -500000,
+                    color="#333333",
+                    fill="#ffffff",
+                    size=2.2)+
+
+    coord_flip()+
+    
+    labs(x="",y="",color="time span",
+         title = "Roman Emperors time span",
+         caption="#TidyTuesday")+
+    theme_light()
+    
+    
+    # geom_col(data=gathered_emperors %>% filter(date_type %in% birth,date))
+
+ggsave(plot_emperor_life,filename = "plot_emperor_life.png",height = 9,width = 10)
+
+plot_emperor_life
+```
+
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+plotly::ggplotly(plot_emperor_life)
+```
+
+## items as absolute values
+
+
+
+#tweet: 
+
+2019-08-06 #TidyTuesday #rstats Bob Ross ! 
+Association rules, wanted to see how the elements were related.
+some element freq/counts, then arules and a plus, @othomn, @chisatini voronoi on images; just wanted to give a try, and its amazing :D! thanks ! 
+https://github.com/jas1/tidytuesday/tree/master/jas1_weeks/2019/2019-08-06
+
+
+
+# communicate
+
+Arules, graphs & voronois
+
+## resources: 
+
+Voronoi stuff: 
+
+- seen on: https://twitter.com/othomn/status/1159110356867911680
+
+- https://github.com/othomantegazza/code-tidytuesday/blob/master/2-32-painting-voronoi.R
+- https://chichacha.netlify.com/2018/11/12/utilizing-k-means-to-extract-colours-from-your-favourite-images/
+
+Arules/Apriori / Association rules: based on previous work and other references: 
+
+- https://twitter.com/jspairani/status/1083717747173928960
+- https://michael.hahsler.net/research/arules_RUG_2015/demo/#association-rules
+- https://www.datacamp.com/community/tutorials/market-basket-analysis-r
+- https://stackoverflow.com/questions/44677670/exporting-a-network-produced-with-visnetwork-for-r
+
+

@@ -458,31 +458,18 @@ ggsave(plot = p ,filename = "voronoi_2.png")
 
 #tweet: 
 
-2019-08-06 #TidyTuesday #rstats Bob Ross ! 
-Association rules, wanted to see how the elements were related.
-some element freq/counts, then arules and a plus, @othomn, @chisatini voronoi on images; just wanted to give a try, and its amazing :D! thanks ! 
-https://github.com/jas1/tidytuesday/tree/master/jas1_weeks/2019/2019-08-06
+2019-08-13 #TidyTuesday #rstats Roman Emperors ! 
+Explored time spans of roman emperors. Some birth dates were NA, so imputed somes values based on wikipedia aproximated dates. The ones imputed are commented.
+If image looks bad check at github for better quality & code.
+
 
 
 
 # communicate
 
-Arules, graphs & voronois
+other stuff that was not on the plot is: 
+got the max date of dynasties and eras.
 
 ## resources: 
 
-Voronoi stuff: 
-
-- seen on: https://twitter.com/othomn/status/1159110356867911680
-
-- https://github.com/othomantegazza/code-tidytuesday/blob/master/2-32-painting-voronoi.R
-- https://chichacha.netlify.com/2018/11/12/utilizing-k-means-to-extract-colours-from-your-favourite-images/
-
-Arules/Apriori / Association rules: based on previous work and other references: 
-
-- https://twitter.com/jspairani/status/1083717747173928960
-- https://michael.hahsler.net/research/arules_RUG_2015/demo/#association-rules
-- https://www.datacamp.com/community/tutorials/market-basket-analysis-r
-- https://stackoverflow.com/questions/44677670/exporting-a-network-produced-with-visnetwork-for-r
-
-
+- wikipedia for emperor missing dates.
