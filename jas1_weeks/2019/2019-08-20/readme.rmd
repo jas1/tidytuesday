@@ -260,7 +260,7 @@ log_col_plot <- data_count%>%
                                     to=max(nuclear_explosions_proc$year),
                                     by=5))+
     scale_y_continuous(breaks = seq(from=0,
-                                    to=10,
+                                    to=15,
                                     by=1))+
     theme_light()+
     theme(axis.text.x = element_text(angle=90))+
@@ -302,7 +302,14 @@ log_line_plot <- data_count %>%
                      nudge_x=c(-14,-15),
                      size=2.5
                      )+
+    scale_x_continuous(breaks = seq(from=min(nuclear_explosions_proc$year),
+                                    to=max(nuclear_explosions_proc$year),
+                                    by=5))+
+    scale_y_continuous(breaks = seq(from=0,
+                                    to=15,
+                                    by=1))+
     theme_light()+
+    theme(axis.text.x = element_text(angle=90))+
     labs(title="Amount of nuclear explosions by purpose over the years",
          subtitle=paste0("Log count explosions.",
                          "From ",min(nuclear_explosions_proc$year),
@@ -321,31 +328,12 @@ ggsave(plot=log_line_plot,filename = "log_line_plot.png",width = 7,height = 5)
 
 #tweet: 
 
-2019-08-06 #TidyTuesday #rstats Bob Ross ! 
-Association rules, wanted to see how the elements were related.
-some element freq/counts, then arules and a plus, @othomn, @chisatini voronoi on images; just wanted to give a try, and its amazing :D! thanks ! 
-https://github.com/jas1/tidytuesday/tree/master/jas1_weeks/2019/2019-08-06
+2019-08-20 #TidyTuesday #rstats Nuclear Explosions!
+lets see them by purpose over the years. enjoy :D
 
 
 
 # communicate
 
-Arules, graphs & voronois
 
 ## resources: 
-
-Voronoi stuff: 
-
-- seen on: https://twitter.com/othomn/status/1159110356867911680
-
-- https://github.com/othomantegazza/code-tidytuesday/blob/master/2-32-painting-voronoi.R
-- https://chichacha.netlify.com/2018/11/12/utilizing-k-means-to-extract-colours-from-your-favourite-images/
-
-Arules/Apriori / Association rules: based on previous work and other references: 
-
-- https://twitter.com/jspairani/status/1083717747173928960
-- https://michael.hahsler.net/research/arules_RUG_2015/demo/#association-rules
-- https://www.datacamp.com/community/tutorials/market-basket-analysis-r
-- https://stackoverflow.com/questions/44677670/exporting-a-network-produced-with-visnetwork-for-r
-
-
