@@ -460,8 +460,7 @@ ggsave(plot = p ,filename = "voronoi_2.png")
 
 2019-08-13 #TidyTuesday #rstats Roman Emperors ! 
 Explored time spans of roman emperors. Some birth dates were NA, so imputed somes values based on wikipedia aproximated dates. The ones imputed are commented.
-If image looks bad check at github for better quality & code.
-
+img & code: https://github.com/jas1/tidytuesday/tree/master/jas1_weeks/2019/2019-08-13
 
 
 

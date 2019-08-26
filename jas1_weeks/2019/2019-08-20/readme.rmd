@@ -1,0 +1,351 @@
+
+
+---
+title: "Tidy tuesday challenge: Week 2019-08-20 Nuclear Explosions"
+author: "julio"
+date: "2019-08-20"
+output: html_document
+---
+
+# Tidy tuesday challenge:  Week 2019-08-20 Nuclear Explosions
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+### Data:
+ 
+ Week 2019-08-20 Nuclear Explosions
+ 
+### objectives:
+
+explore & do something
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+# library(sf)
+library(dplyr)
+library(stringr)#;
+# library(rebus)#; install.packages('rebus')
+# library(tidytext)
+# library(prophet)
+
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+library(lubridate)
+library(ggforce)
+library(ggrepel)
+
+# library(arules)#install.packages('arules')
+# library(arulesViz)#install.packages('arulesViz')
+# library(igraph)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nuclear_explosions <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-08-20/nuclear_explosions.csv")
+```
+
+# explore data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nuclear_explosions %>% head()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nuclear_explosions %>% glimpse()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nuclear_explosions %>% skimr::skim()
+
+
+```
+
+
+purpose & type migth get cryptic so , lets be more descriptive
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nuclear_explosions_proc <- nuclear_explosions %>% 
+    separate(col=purpose,into = c("purpose","purpose_subtype"),sep = ":") %>% # subtype
+    separate_rows(col=purpose,sep = "/") %>% # multitype
+    mutate(purpose_desc=case_when(purpose=="COMBAT"~"WWII bombs dropped over Japan",
+                               purpose=="FMS"~"Soviet test,\nstudy phenomenon of nuclear explosion",
+                               purpose=="ME"~"Military Exercise",
+                               purpose=="PNE"~"Peaceful nuclear explosion",
+                               purpose=="SAM"~"Soviet test,\naccidental mode/emergency",
+                               purpose=="SE"~"French/US tests - testing safety\nof nuclear weapons in case of accident",
+                               purpose=="TRANSP"~"Transportation-storage purposes",
+                               purpose=="WE"~"British, French, US, evaluate effects\n of nuclear detonation on various targets", 
+                               purpose=="WR"~"Weapons development program")) %>% 
+    mutate(type_desc=case_when(type=="ATMOSPH" ~ "Atmospheric",
+type=="UG" ~ "underground",
+type=="BALLOON" ~ "Balloon drop",
+type=="AIRDROP" ~ "Airplane deployed",
+type=="ROCKET" ~ "Rocket deployed",
+type=="TOWER" ~ "deplyed at top of constructed tower",
+type=="WATERSURFACE" ~ "on surface of body of water",
+type=="BARGE" ~ "on barge boat",
+type=="SURFACE" ~ "on surface or in shallow crater",
+type=="UW" ~ "Underwater",
+type=="SHAFT" ~ "Vertical Shaft underground",
+type=="TUNNEL/GALLERY" ~ "Horizontal tunnel")) %>% 
+    mutate(purpose_subtype_desc=case_when(purpose_subtype=="PLO"~"Plowshare programme",
+                                          purpose_subtype=="V"~"Vela uniform tests"))
+```
+
+lets check descriptions and types / purposes
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+nuclear_explosions_proc %>% 
+    count(purpose,purpose_desc)
+```
+
+can see can have multiple purposes.
+
+also can see that the  "PNE" type can have other types not specified, as : plo and v
+
+so plo & v subtypes all send em to other colum ( : separator )
+and the multitype ones ( " / " separator) will be treated as a bomb with 2 types.
+
+well for more detail can chech the pdf. 
+its already late so ill go for a simple one.
+
+wich countries done more tests over time, and wich types / purposes
+
+or wich purposes over time / type of bomb
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+label_events <- data.frame(year=c(1963,1996),desc=c("Partial test Ban\n(no more ATMO)",
+                                                 "Comprehensive\nnuclear test ban"),
+                           nudge_y_value=c(1205,1500),
+                           nudge_x_value=c(20,-20),
+                           stringsAsFactors = FALSE)
+
+data_count <- nuclear_explosions_proc %>% 
+    count(year,purpose_desc, sort=TRUE)
+
+line_simple_plot <-  data_count %>% 
+    ggplot(aes(x=year, y=n,color=purpose_desc))+
+    geom_line()+
+    geom_vline(xintercept = label_events$year,linetype=2)+
+    geom_label_repel(data = label_events, aes(x=year,
+                                              y=100,
+                                              label=paste0(desc,"\n",year)
+                                              # nudge_y = nudge_y_value,
+                                              # nudge_x=nudge_x_value),
+                                              ),
+                     color="#333333",
+                     nudge_y=c(0,50),
+                     nudge_x=c(15,-15),
+                     size=3
+                     )+
+    scale_x_continuous(breaks = seq(from=min(nuclear_explosions_proc$year),
+                                    to=max(nuclear_explosions_proc$year),
+                                    by=5))+
+    scale_y_continuous(breaks = seq(from=0,
+                                    to=max(data_count$n)+15,
+                                    by=15))+
+    theme_light()+
+    theme(axis.text.x = element_text(angle=90))+
+    
+    
+    labs(title="Amount of nuclear explosions by purpose over the years",
+         subtitle=paste0("From ",min(nuclear_explosions_proc$year),
+                         " to ",max(nuclear_explosions_proc$year)),
+         x="",y="",color="Purpose",
+         caption = "#tidyTuesday")
+
+ggsave(plot=line_simple_plot,filename = "line_simple_plot.png",width = 7,height = 5)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+label_events <- data.frame(year=c(1963,1996),desc=c("Partial test Ban\n(no more ATMO)",
+                                                 "Comprehensive\nnuclear test ban"),
+                           nudge_y_value=c(1205,1500),
+                           nudge_x_value=c(20,-20),
+                           stringsAsFactors = FALSE)
+
+years_cum_sum <- data_count %>% group_by(year) %>% summarise(total=sum(n))
+
+col_simple_plot <- data_count %>% 
+    ggplot(aes(x=year, y=n,fill=paste0(purpose_desc,"\n")))+
+    geom_col()+
+    geom_vline(xintercept = label_events$year,linetype=2)+
+    geom_label_repel(data = label_events, aes(x=year,
+                                              y=125,
+                                              label=paste0(desc,"\n",year)
+                                              # nudge_y = nudge_y_value,
+                                              # nudge_x=nudge_x_value),
+                                              ),
+                     color="#333333",
+                     fill="#FFFFFF",
+                     nudge_y=c(5,5),
+                     nudge_x=c(-14,-15),
+                     size=2.5
+                     )+
+    scale_x_continuous(breaks = seq(from=min(nuclear_explosions_proc$year),
+                                    to=max(nuclear_explosions_proc$year),
+                                    by=5))+
+    scale_y_continuous(breaks = seq(from=0,
+                                    to=max(years_cum_sum$total)+15,
+                                    by=15))+
+    theme_light()+
+    theme(axis.text.x = element_text(angle=90))+
+    
+    
+    labs(title="Acumulated amount of nuclear explosions by purpose over the years",
+         subtitle=paste0("From ",min(nuclear_explosions_proc$year),
+                         " to ",max(nuclear_explosions_proc$year)),
+         x="",y="",fill="Purpose",
+         caption = "#tidyTuesday")
+
+ggsave(plot=col_simple_plot,filename = "col_simple_plot.png",width = 7,height = 5)
+
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+label_events <- data.frame(year=c(1963,1996),desc=c("Partial test Ban\n(no more ATMO)",
+                                                 "Comprehensive\nnuclear test ban"),
+                           nudge_y_value=c(1205,1500),
+                           nudge_x_value=c(20,-20),
+                           stringsAsFactors = FALSE)
+
+log_col_plot <- data_count%>% 
+    ggplot(aes(x=year, y=log(n),fill=paste0(purpose_desc,"\n")))+
+    geom_col()+
+    geom_vline(xintercept = label_events$year,linetype=2)+
+    geom_label_repel(data = label_events, aes(x=year,
+                                              y=10,
+                                              label=paste0(desc,"\n",year)
+                                              # nudge_y = nudge_y_value,
+                                              # nudge_x=nudge_x_value),
+                                              ),
+                     color="#333333",
+                     fill="#FFFFFF",
+                     nudge_y=c(5,5),
+                     nudge_x=c(-14,-15),
+                     size=2.5
+                     )+
+    scale_x_continuous(breaks = seq(from=min(nuclear_explosions_proc$year),
+                                    to=max(nuclear_explosions_proc$year),
+                                    by=5))+
+    scale_y_continuous(breaks = seq(from=0,
+                                    to=10,
+                                    by=1))+
+    theme_light()+
+    theme(axis.text.x = element_text(angle=90))+
+    
+    labs(title="Amount of nuclear explosions by purpose over the years",
+         subtitle=paste0("Log count explosions.",
+                         "From ",min(nuclear_explosions_proc$year),
+                         " to ",max(nuclear_explosions_proc$year)),
+         x="",y="",fill="Purpose",
+         caption = "#tidyTuesday")
+
+ggsave(plot=log_col_plot,filename = "log_col_plot.png",width = 7,height = 5)
+
+```
+
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+label_events <- data.frame(year=c(1963,1996),desc=c("Partial test Ban\n(no more ATMO)",
+                                                 "Comprehensive\nnuclear test ban"),
+                           nudge_y_value=c(1205,1500),
+                           nudge_x_value=c(20,-20),
+                           stringsAsFactors = FALSE)
+
+log_line_plot <- data_count %>% 
+    ggplot(aes(x=year, y=log(n),color=paste0(purpose_desc,"\n")))+
+    geom_line()+
+    geom_vline(xintercept = label_events$year,linetype=2)+
+    geom_label_repel(data = label_events, aes(x=year,
+                                              y=log(100),
+                                              label=paste0(desc,"\n",year)
+                                              # nudge_y = nudge_y_value,
+                                              # nudge_x=nudge_x_value),
+                                              ),
+                     color="#333333",
+                     nudge_y=c(5,5),
+                     nudge_x=c(-14,-15),
+                     size=2.5
+                     )+
+    theme_light()+
+    labs(title="Amount of nuclear explosions by purpose over the years",
+         subtitle=paste0("Log count explosions.",
+                         "From ",min(nuclear_explosions_proc$year),
+                         " to ",max(nuclear_explosions_proc$year)),
+         x="",y="",color="Purpose",
+         caption = "#tidyTuesday")
+
+
+ggsave(plot=log_line_plot,filename = "log_line_plot.png",width = 7,height = 5)
+
+```
+
+## items as absolute values
+
+
+
+#tweet: 
+
+2019-08-06 #TidyTuesday #rstats Bob Ross ! 
+Association rules, wanted to see how the elements were related.
+some element freq/counts, then arules and a plus, @othomn, @chisatini voronoi on images; just wanted to give a try, and its amazing :D! thanks ! 
+https://github.com/jas1/tidytuesday/tree/master/jas1_weeks/2019/2019-08-06
+
+
+
+# communicate
+
+Arules, graphs & voronois
+
+## resources: 
+
+Voronoi stuff: 
+
+- seen on: https://twitter.com/othomn/status/1159110356867911680
+
+- https://github.com/othomantegazza/code-tidytuesday/blob/master/2-32-painting-voronoi.R
+- https://chichacha.netlify.com/2018/11/12/utilizing-k-means-to-extract-colours-from-your-favourite-images/
+
+Arules/Apriori / Association rules: based on previous work and other references: 
+
+- https://twitter.com/jspairani/status/1083717747173928960
+- https://michael.hahsler.net/research/arules_RUG_2015/demo/#association-rules
+- https://www.datacamp.com/community/tutorials/market-basket-analysis-r
+- https://stackoverflow.com/questions/44677670/exporting-a-network-produced-with-visnetwork-for-r
+
+
