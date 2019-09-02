@@ -1,0 +1,188 @@
+
+
+---
+title: "Tidy tuesday challenge: Week 2019-08-27 Simpsons guests
+author: "julio"
+date: "2019-08-20"
+output: html_document
+---
+
+# Tidy tuesday challenge:  Week 2019-08-27 Simpsons guests
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+just explore and plot something =) 
+
+### Data:
+ 
+ Week 2019-08-27 Simpsons guests
+ 
+### objectives:
+
+explore & do something
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+# library(sf)
+library(dplyr)
+library(stringr)#;
+# library(rebus)#; install.packages('rebus')
+# library(tidytext)
+# library(prophet)
+
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+library(lubridate)
+library(ggforce)
+library(ggrepel)
+
+# library(arules)#install.packages('arules')
+# library(arulesViz)#install.packages('arulesViz')
+# library(igraph)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+simpsons <- readr::read_delim("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-08-27/simpsons-guests.csv", delim = "|", quote = "")
+```
+
+# explore data
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+simpsons %>% head()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+simpsons %>% glimpse()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+simpsons %>% skimr::skim()
+
+
+```
+
+
+guest stars as themselves vs guest stars as other
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+simpsons_process <- simpsons %>% 
+    separate_rows(role,sep = ";") %>%  # becaus of multiple roles
+    mutate(role=stringr::str_trim(role)) %>% # becaus of leadign or ending withe spaces
+    mutate(as_self=if_else(role%in%c("Himself","Herself","Themselves"),TRUE,FALSE)) %>% 
+    mutate(season=if_else(season=="Movie",as.double(18.5),as.double(season)))
+    # mutate(as_self=if_else(role==guest_star,TRUE,FALSE)) 
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+total_season <- simpsons_process %>%
+    count(season) %>%  rename(total=n)
+
+are_themselves_plot <- simpsons_process %>%
+    group_by(season,as_self) %>% 
+    left_join(total_season) %>% 
+    summarise(quant=n(),total=mean(total) ,ratio=quant/total) %>% 
+    # ungroup() %>% 
+    # mutate(season=as.factor(season)) %>% 
+    # mutate(season=if_else(season=="0","Movie",season)) %>% 
+    ggplot(aes(x=as.factor(season),y=ratio,fill=as_self)) +
+    geom_col()+
+    scale_y_continuous(labels=scales::percent)+
+    theme_light()+
+    coord_flip()+
+    labs(x="",y="# count",fill="as self",
+         title="Simpsons Guests: Are themselves across the seasons ?",
+         subtitle = "Movie recoded as 18.5 ( released on july 2007 between season 18 and 19)",
+         caption="#TidyTuesday")
+
+ggsave(plot=are_themselves_plot,filename = "are_themselves_plot.png")
+
+# 
+# simpsons_process %>% 
+#     count(role,sort = TRUE)
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+more_than_one_role_data <- simpsons_process %>%
+    count(season,guest_star,role,sort = TRUE) %>% 
+    count(season,guest_star,sort = TRUE) 
+
+metric_str <- "n"
+top_n_num <- 3
+resu <- more_than_one_role_data %>% 
+nest(-season) %>% 
+    mutate(top_n_year=purrr::map(data,
+                                    n_top=top_n_num,
+                                    .f=function(d,n_top){
+        ranking <- seq(from=1,to = n_top,by = 1)
+        ret <- d %>% 
+
+            arrange(desc(n)) %>% 
+            head(n_top) %>% 
+            mutate(rank=ranking)
+        ret
+    })) %>% unnest(top_n_year)
+
+ plot_out <- resu %>% 
+    mutate(guest_star=fct_reorder(guest_star,rank,.desc = TRUE)) %>% 
+    mutate(rank=as.factor(rank)) %>% 
+    ggplot(aes(x=as.factor(season),y=guest_star,color=rank,group=rank,label=n))+
+    geom_point()+
+    geom_line(show.legend = FALSE)+
+    theme_light()+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1),
+          axis.text.y = element_text(size = 6))+
+    labs(x="",y="", 
+         title="Top 3 guests with more characters per season",
+         subtitle = "Movie recoded as 18.5 ( released on july 2007 between season 18 and 19)",
+         caption="#TidyTuesday")
+
+ggsave(plot=plot_out,filename = "top3_guest_chars.png")
+
+
+```
+
+## items as absolute values
+
+
+
+#tweet: 
+
+2019-08-27 #TidyTuesday #rstats Simpsons guests !
+they play themselves ?
+who are the top 3 playing more than one role over the seasons?
+
+
+
+# communicate
+
+just a simple one
+
+## resources: 
+
+old submissions :p 
