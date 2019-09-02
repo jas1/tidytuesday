@@ -76,6 +76,7 @@ Want to submit a useful code-chunk? Please submit as a [Pull Request](https://gi
 | 32 | `2019-08-06` | [Bob Ross paintings](data/2019/2019-08-06) | [FiveThirtyEight](https://github.com/fivethirtyeight/data/tree/master/bob-ross) | [FiveThirtyEight](https://fivethirtyeight.com/features/a-statistical-analysis-of-the-work-of-bob-ross/) |
 | 33 | `2019-08-13` | [Roman Emperors](data/2019/2019-08-13) | [Wikipedia](https://en.wikipedia.org/wiki/List_of_Roman_emperors) / [Zonination](https://github.com/zonination/emperors/blob/master/README.md) | [reddit.com/r/dataisbeautiful](https://www.reddit.com/r/dataisbeautiful/comments/8tzfgz/roman_emperors_by_year_oc/) |
 | 34 | `2019-08-20` | [Nuclear Explosions](data/2019/2019-08-20) | [SIPRI](https://github.com/data-is-plural/nuclear-explosions/blob/master/documents/sipri-report-original.pdf) | [Our World in Data](https://ourworldindata.org/nuclear-weapons) |
+| 35 | `2019-08-27` | [Simpsons Guest Stars](data/2019/2019-08-27) | [Wikipedia](https://github.com/data-is-plural/nuclear-explosions/blob/master/documents/sipri-report-original.pdf) | [Wikipedia](https://en.wikipedia.org/wiki/List_of_The_Simpsons_guest_stars) |
 
 
 ***  
@@ -104,7 +105,7 @@ Want to submit a useful code-chunk? Please submit as a [Pull Request](https://gi
 | [:link:](https://cran.r-project.org/web/packages/fivethirtyeight/fivethirtyeight.pdf) | The `fivethirtyeight` data package 
 | [:link:](https://github.com/TheUpshot) | The Upshot by NY Times |
 | [:link:](https://github.com/baltimore-sun-data) | The Baltimore Sun Data Desk |
-| [:link:](https://github.com/datadesk) | The LA Times Sun Data Desk |
+| [:link:](https://github.com/datadesk) | The LA Times Data Desk |
 | [:link:](https://github.com/OpenNewsLabs/news-graphics-team) | Open News Labs |
 | [:link:](https://t.co/BMvJO2dT1o) | BBC Data Journalism team |
 
