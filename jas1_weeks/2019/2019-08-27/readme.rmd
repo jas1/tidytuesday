@@ -186,3 +186,42 @@ just a simple one
 ## resources: 
 
 old submissions :p 
+
+## on demand palette
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+total_season <- simpsons_process %>%
+    count(season) %>%  rename(total=n)
+
+are_themselves_plot_palette <- simpsons_process %>%
+    group_by(season,as_self) %>% 
+    left_join(total_season) %>% 
+    summarise(quant=n(),total=mean(total) ,ratio=quant/total) %>% 
+    # ungroup() %>% 
+    # mutate(season=as.factor(season)) %>% 
+    # mutate(season=if_else(season=="0","Movie",season)) %>% 
+    ggplot(aes(x=as.factor(season),y=ratio,fill=as_self)) +
+    geom_col()+
+    scale_y_continuous(labels=scales::percent)+
+    coord_flip()+
+    theme_light()+
+    scale_fill_manual(values = c("#dedede","#ffbb22"))+#"#8899ff"
+    theme(text = element_text(colour = "#eeaa11"),#aaaaaa
+          panel.grid=element_line(colour="#99aaff"),
+          plot.background = element_rect(fill ="#eeeeee"),##8899ff
+          panel.background = element_rect(fill ="#8899ff" ) )+
+    geom_hline(yintercept = 0.25,linetype=2,colour="#99aaff" )+
+    geom_hline(yintercept = 0.5,linetype=2,colour="#99aaff" )+
+    geom_hline(yintercept = 0.75,linetype=2,colour="#99aaff" )+
+    labs(x="",y="# count",fill="as self",
+         title="Simpsons Guests: Are themselves across the seasons ?",
+         subtitle = "Movie recoded as 18.5 ( released on july 2007 between season 18 and 19)",
+         caption="#TidyTuesday")
+are_themselves_plot_palette
+ggsave(plot=are_themselves_plot_palette,filename = "are_themselves_plot_palette.png")
+
+# 
+# simpsons_process %>% 
+#     count(role,sort = TRUE)
+```
