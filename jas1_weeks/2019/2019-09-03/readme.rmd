@@ -1,0 +1,178 @@
+---
+title: "Tidy tuesday challenge: Week 2019-09-03 moore's law
+author: "julio"
+date: "2019-09-08"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-09-03 moore's law
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+just explore and plot something =) 
+
+### Data:
+ 
+ Week Week 2019-09-03 moore's law
+ 
+### objectives:
+
+explore & do something
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)
+# library(sf)
+library(dplyr)
+library(stringr)#;
+# library(rebus)#; install.packages('rebus')
+# library(tidytext)
+# library(prophet)
+
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+library(lubridate)
+library(ggforce)
+library(ggrepel)
+
+library(tidyquant)
+# library(arules)#install.packages('arules')
+# library(arulesViz)#install.packages('arulesViz')
+# library(igraph)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+cpu <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-03/cpu.csv")
+
+gpu <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-03/gpu.csv")
+
+ram <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-03/ram.csv")
+
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+cpu %>% head()
+gpu %>% head()
+ram %>% head()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+cpu %>% glimpse()
+gpu %>% glimpse()
+ram %>% glimpse()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+cpu %>% skimr::skim()
+gpu %>% skimr::skim()
+ram %>% skimr::skim()
+
+```
+
+
+ummm as 3 datasets its quite ... not happy ... ill join all in one :p 
+procesor, transistor_count, date_of_introduction
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+all_one <-  cpu %>% 
+    select(processor,transistor_count,date_of_introduction) %>% 
+    mutate(type="cpu") %>% 
+    union_all( (gpu %>% 
+                    select(processor,transistor_count,date_of_introduction)%>% 
+                    mutate(type="gpu"))) %>% 
+    union_all((ram %>% 
+                   rename(processor=chip_name) %>% 
+                   select(processor,transistor_count,date_of_introduction)%>% 
+                   mutate(type="ram"))) %>% 
+    rename(name=processor)
+
+
+all_one_complete <- all_one %>% filter(complete.cases(all_one))
+
+skimr::skim(all_one_complete)
+```
+
+
+simple plot: 
+transistors by type over time: 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+data_plot <- all_one_complete %>%  
+    group_by(type,date_of_introduction) %>% 
+    summarise(total_transistors=sum(transistor_count),
+              max_transistors=max(transistor_count),
+              min_transistors=min(transistor_count))
+    
+plot_out <- data_plot %>% 
+    ggplot(aes(x=date_of_introduction,
+               y=log(max_transistors),
+
+               # fill=type
+               )) +
+    geom_line(aes(colour=type))+
+    geom_candlestick(aes(open = log(min_transistors),
+                         high = log(max_transistors),
+                         low = log(min_transistors),
+                         close = log(max_transistors)),alpha=0.5)+
+    # geom_boxplot()+
+    facet_grid(type~.,scales = "free_y")+
+    scale_x_continuous(breaks = seq(from=1960,to=2020, by=5) )+
+    theme_light()+
+    theme(legend.position = "none",
+          strip.text.y = element_text(angle = 360),
+          axis.text.x = element_text(angle = 90))+
+    labs(title="Transistors over time ( log transistors )",
+         subtitle="line: max transistors in year\nbars: candlesticks over transistors",
+         x="",y="",
+         caption="#TidyTuesday")+
+    geom_vline(xintercept = seq(1960,2020,10),linetype=2)
+ggsave(plot = plot_out,filename = "transistors_over_time_log.png",width = 7,height = 5)
+
+```
+
+
+## items as absolute values
+
+
+
+#tweet: 
+
+2019-09-03 #TidyTuesday #rstats Moore's Law ! transistors over time :D
+experimenting with candlesticks in other context :p 
+
+
+# communicate
+
+just a simple one
+
+# resources: 
+- candlesticks: https://cran.r-project.org/web/packages/tidyquant/vignettes/TQ04-charting-with-tidyquant.html#candlestick-chart
