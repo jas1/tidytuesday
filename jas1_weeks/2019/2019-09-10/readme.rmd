@@ -181,17 +181,21 @@ ggsave(filename = "accidents_by_year.png",plot = pf,width = 5,height = 7)
 2019-09-10 #TidyTuesday #rstats Amusement Park Injuries In USA !
 Some simple plot with scico package for colors. 
 Also with plumber api to test different palettes as parameter :D!
-code:
+code: https://github.com/jas1/tidytuesday/tree/master/jas1_weeks/2019/2019-09-10
 
 
 # communicate
 
 plumber api with plots
 
+here tweet: https://twitter.com/jspairani/status/1173799069761847296
+
 # resources: 
-- resources: 
 
 scico palette: https://github.com/thomasp85/scico
 code plumber: https://github.com/rstudio/plumber/blob/master/R/images.R
 docu plumber: https://www.rplumber.io/docs/rendering-and-output.html#response-object
 some stack overflow: https://stackoverflow.com/questions/50033857/serve-arbitrary-image-files-through-plumber
+
+spanish version: 
+- https://github.com/jas1/datos-de-miercoles/blob/master/jas1_semanas/2019/2019-08-21/api_co2/plumber.R
