@@ -1,0 +1,197 @@
+---
+title: "Tidy tuesday challenge: Week 2019-09-10 Amusement Park Injuries
+author: "julio"
+date: "2019-09-08"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-09-10 Amusement Park Injuries
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+just explore and plot something =) 
+
+### Data:
+ 
+ Week Week 2019-09-10 Amusement Park Injuries
+ 
+### objectives:
+
+explore & do something
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+library(magrittr) # para el %T>%
+library(tidyverse)#; install.packages("tidyverse")
+# library(tidyr)#;install.packages("tidyr");install.packages("readxl");install.packages("xml2")
+# library(sf)
+library(dplyr)
+library(stringr)#;
+# library(rebus)#; install.packages('rebus')
+# library(tidytext)
+# library(prophet)
+# install.packages('scico')
+library(scico)
+
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+library(lubridate)
+library(ggforce)
+
+library(corrplot)
+
+library(ggrepel)
+library(tidytext)
+library(tidyquant)
+# library(arules)#install.packages('arules')
+# library(arulesViz)#install.packages('arulesViz')
+# library(igraph)
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+tx_injuries <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-10/tx_injuries.csv")
+
+safer_parks <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-10/saferparks.csv")
+
+# now_data <- list(tx_injuries,safer_parks)
+
+```
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# now_data %>% purrr::map(now_data,head)
+tx_injuries %>% head()
+safer_parks %>% head()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+tx_injuries %>% glimpse()
+safer_parks %>% glimpse()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+tx_injuries %>% skimr::skim()
+safer_parks %>% skimr::skim()
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+DataExplorer::plot_missing(tx_injuries)
+DataExplorer::plot_missing(safer_parks)
+```
+
+getting no missing columns
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+safer_parks_no_na <- safer_parks %>% select(category,tradename_or_generic,device_type,device_category,industry_sector,bus_type,source,fix_port,acc_state,acc_date,acc_id)
+
+tx_injuries_no_na <- tx_injuries %>% select(ride_name,st,city,name_of_operation,injury_report_rec)
+```
+
+ok . now we see that reports, are mainly from TX 51 reports from TX, 1 from FL & 1 from AZ
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+tx_injuries_no_na %>% 
+    count(st,injury_report_rec) %>% 
+    count(st)
+```
+
+
+
+
+what about safer parks data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+p <- safer_parks_no_na %>% 
+    count(acc_state,sort = TRUE) %>% 
+    mutate(acc_state=fct_reorder(acc_state,n)) %>% 
+    filter(n>0) %>% 
+    ggplot(aes(x=acc_state,y=n,fill=acc_state))+
+    geom_col()+
+    coord_flip()+
+    theme(legend.position = "none")
+
+plotly::ggplotly(p)
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+pf_data <-  safer_parks_no_na %>% 
+    mutate(date_acc=lubridate::mdy(acc_date)) %>% 
+    mutate(year=as.factor(lubridate::year(date_acc)))
+
+
+pf_data_min <- min(pf_data$date_acc)
+pf_data_max <- max(pf_data$date_acc)
+
+pf <- pf_data %>% 
+    count(acc_state,year,sort = TRUE) %>% 
+    mutate(acc_state=fct_reorder(acc_state,n)) %>% 
+    filter(n>0) %>% 
+    ggplot(aes(x=year,y=acc_state,fill=n))+
+    # geom_col()+
+    geom_tile()+
+    scale_fill_scico(palette = "roma",direction = -1)+
+    scale_x_discrete()+
+    theme_light()+
+    labs(x="",y="",fill="#accidents",
+         title="Amusement Park Accidents In USA",
+         subtitle = paste0("from ",pf_data_min, " to ",pf_data_max),
+         caption="#TidyTuesday")
+    # ggridges::geom_density_ridges()
+    # coord_flip()
+    # theme(legend.position = "none")
+ggsave(filename = "accidents_by_year.png",plot = pf,width = 5,height = 7)
+# plotly::ggplotly(p)
+
+```
+
+
+## items as absolute values
+
+
+
+#tweet: 
+
+2019-09-10 #TidyTuesday #rstats Amusement Park Injuries In USA !
+Some simple plot with scico package for colors. 
+Also with plumber api to test different palettes as parameter :D!
+code:
+
+
+# communicate
+
+plumber api with plots
+
+# resources: 
+- resources: 
+
+scico palette: https://github.com/thomasp85/scico
+code plumber: https://github.com/rstudio/plumber/blob/master/R/images.R
+docu plumber: https://www.rplumber.io/docs/rendering-and-output.html#response-object
+some stack overflow: https://stackoverflow.com/questions/50033857/serve-arbitrary-image-files-through-plumber
