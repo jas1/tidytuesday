@@ -1,0 +1,293 @@
+---
+title: "Tidy tuesday challenge: Week 2019-09-17 National Park Visits
+author: "julio"
+date: "2019-09-23"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-09-17 National Park Visits
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+just explore and plot something =) 
+
+### Data:
+ 
+ Week Week 2019-09-17 National Park Visits
+ 
+### objectives:
+
+explore & do something
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(magrittr)
+library(tidyverse)
+# library(ggrepel)
+library(skimr)
+
+library(here)
+# library(dplyr)
+# library(tidyr)
+# library(readxl)
+# library(janitor)
+# library(stringr)
+# library(lubridate)
+library(geojsonsf)
+
+library(geojsonio); #install.packages("geojsonio")
+
+library(grid)
+library(spatialEco)#; install.packages("spatialEco")
+library(sp)
+library(sf)# install.packages('sf')
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+
+library(transformr)# install.packages('transformr')
+library(gganimate)# install.packag
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+park_visits <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-17/national_parks.csv")
+# state_pop <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-17/state_pop.csv")
+# gas_price <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-17/gas_price.csv")
+
+```
+
+too much data i'll just focus on parks
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# now_data %>% purrr::map(now_data,head)
+park_visits %>% head()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+park_visits %>% glimpse()
+
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+park_visits %>% skimr::skim()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+DataExplorer::plot_missing(park_visits)
+
+```
+
+getting year/unitname/visitors/gnis_id
+
+year for animation, unitname for name of park , visitors to see something, and gnis id to plot it.
+1st gotta get the geojson. renamted to  usa_national_parks.geojson (got froM: https://data.world/codefordc/national-parks)
+
+ok code not worked: 
+just got some washington dc parks. after some cleaning. 
+used: http://geojsonlint.com/ to validate parks
+used: https://mapster.me/right-hand-rule-geojson-fixer/ to fix geojson.
+used: https://gis.stackexchange.com/questions/259944/polygons-and-multipolygons-should-follow-the-right-hand-rule to ge tinformed about the righthand rule error
+
+used: https://observablehq.com/@erincaughey/national-parks-geojson to get a working url with geojson
+
+ok the geojson to sf not working with this geojson
+
+
+ill try with leaflet ... 
+
+::facepalm:: was just i got the path wrong :/
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ 
+# park_visits %>%  count(year)
+usa_national_parks_geojson_file <- here::here("jas1_weeks","2019","2019-09-17","usa_national_parks.geojson")
+
+usa_national_parks_original_geojson_file <- here::here("jas1_weeks","2019","2019-09-17","usa_national_parks_original.geojson")
+
+# Error in rcpp_geojson_to_sf(geojson, expand_geometries) : Invalid JSON
+usa_national_parks_geojson <- geojsonsf::geojson_sf(usa_national_parks_geojson_file) %>% 
+    janitor::clean_names()
+# 
+# usa_national_parks_geojson_orig <- geojsonsf::geojson_sf(usa_national_parks_original_geojson_file)
+
+# ok can join by unit name
+usa_national_parks_geojson_sans_geom <- usa_national_parks_geojson %>% 
+    sf::st_set_geometry(NULL)
+
+simple_visits <- park_visits %>% 
+    filter(year!="Total") %>% 
+    mutate(year=as.integer(year)) %>% 
+    select(year,unit_code,unit_name,visitors)
+
+simple_visits_total_time <- simple_visits %>% 
+    group_by(unit_name,unit_code) %>% 
+    summarise(period_max=max(year,na.rm = TRUE),
+              period_min=min(year,na.rm = TRUE),
+              period_range=paste0(period_min,"-",period_max),
+              total_visitors=sum(visitors,na.rm = TRUE))
+
+
+simple_visits_total_time_total <- park_visits %>% 
+    filter(year=="Total") %>% 
+    select(unit_code,unit_name,visitors) %>% 
+    group_by(unit_name,unit_code) %>% 
+    summarise(period_max=max(year,na.rm = TRUE),
+              period_min=min(year,na.rm = TRUE),
+              period_range=paste0(period_min,"-",period_max),
+              total_visitors=sum(visitors,na.rm = TRUE))
+
+simple_visits_total_time_total %>% count(unit_code) %>%  filter(n>1)
+usa_national_parks_geojson_sans_geom %>% count(unitco ) %>%  filter(n>1)
+
+not_in_map <- usa_national_parks_geojson_sans_geom %>% 
+    anti_join(simple_visits_total_time,by = c("unit_code"="unit_code")) %>% 
+    select(unit_code,unit_code)
+
+not_in_data <- simple_visits_total_time %>% 
+    anti_join(usa_national_parks_geojson_sans_geom,
+              by = c("unit_code"="UNIT_CODE")) %>% 
+    select(unit_code,unit_name)
+
+usa_national_parks_geojson %>% 
+    left_join(simple_visits_total_time,by = c("UNIT_CODE"="unit_code"))
+
+```
+
+# simple stuff
+
+ok, well got too much time out on this . ill go simple. 
+
+was thinking on doing some plot with color acord to type of park 
+
+
+ok, xml's also dont work
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+fac_levels <- c("60+", "40+ - 60", "20+ - 40", "10+ - 20","5+ - 10","0 - 5") 
+park_type_totals <- park_visits %>% 
+    filter(year=="Total") %>% 
+    group_by(unit_type) %>% 
+    summarise(quantity=n(),visitors_total=sum(visitors,na.rm = TRUE),has_nas=any(is.na(visitors))) %>% 
+    mutate(park_quant_bin=case_when(quantity> 60 ~ "60+",
+                                    quantity> 40 & quantity<= 60 ~ "40+ - 60",
+                                    quantity> 20 & quantity<= 40 ~ "20+ - 40",
+                                    quantity> 10 & quantity<= 20 ~ "10+ - 20",
+                                    quantity> 5 & quantity<= 10 ~ "5+ - 10",
+                                    quantity<= 5 ~ "0 - 5")) %>% 
+    mutate(park_quant_bin=factor(park_quant_bin,levels=fac_levels) ) %>% 
+    mutate(unit_type=fct_reorder(unit_type,visitors_total))
+
+    
+
+    # factor(c("60+", "40+ - 60", "20+ - 40", "10+ - 20","5+ - 10","0 - 5"), 
+    #    levels = c("60+", "40+ - 60", "20+ - 40", "10+ - 20","5+ - 10","0 - 5"))
+```
+```{r echo=FALSE,message=FALSE,warning=FALSE}    
+    
+park_type_c <- park_type_totals %>% 
+    mutate(unit_type=fct_reorder(unit_type,visitors_total)) %>% 
+    ggplot(aes(x=unit_type,y = log(visitors_total),fill=quantity))+
+    geom_col()+
+    coord_flip()+
+    theme_light()+
+    labs(title="USA Type of National Parks",
+         subtitle = "visitors in log scale",
+         x="",y="log visitors", fill="Park Quantity")
+```
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+plot_bkg <- "#3b95c0" # "#8e5017"
+text_color_all <- "#f7e7c5"  #"#dff3f8" #"#a9d9e8" # "#7dcdc2"
+text_color_all_with_nas <- "#fe9a99"  #"#dff3f8" #"#a9d9e8" # "#7dcdc2"
+
+text_colours_vector <- if_else(park_type_totals$has_nas,text_color_all_with_nas,text_color_all)
+
+
+# t1 <- textGrob(expression("visitors in log scale; " * phantom(bold("park with NA in COLOR"))),
+#                x = 0.5, y = 1.1, gp = gpar(col = "black"))
+# t2 <- textGrob(expression(phantom("visitors in log scale; ") * bold("park with NA in COLOR")),
+#                x = 0.5, y = 1.1, gp = gpar(col = "#fe9a99"))
+
+park_type_d <- park_type_totals %>% 
+    ggplot(aes(x=unit_type,
+               y = log(visitors_total),
+               fill=park_quant_bin))+
+    geom_col()+
+    # geom_point(aes(color=has_nas))+
+    scale_fill_brewer(palette = "BuGn",direction = -1)+
+    coord_flip()+
+    theme_light()+
+    # annotation_custom(grobTree(t1, t2))+
+    theme(text = element_text(colour = text_color_all),
+          panel.grid=element_line(colour="#c18038"),
+          axis.text.y = element_text(colour = text_colours_vector),
+          axis.text.x = element_text(colour = text_color_all),
+          legend.background = element_rect(fill = plot_bkg),
+          legend.key = element_rect(fill ="#e1c083"),
+          plot.background = element_rect(fill =plot_bkg),###8e5017
+          panel.background = element_rect(fill ="#e1c083"))+
+    labs(title="USA Type of National Parks",
+         subtitle = "visitors in log scale; park with NA in Pink",
+         x="",y="log visitors", fill="Park Quantity",
+         caption="#TidyTuesday")
+
+# park_type_d
+ggsave(filename = "usa_national_park_types_d.png",plot = park_type_d,width = 7,height = 6)
+
+```
+
+
+## items as absolute values
+
+
+
+#tweet: 
+
+2019-09-23 #TidyTuesday #rstats National Park Visits !
+Some simple plot with custom colors brougth from several scales of color brewer.
+
+code: 
+
+
+# communicate
+
+too much time experimenting :p 
+with geojson and some tiem with ggplot.
+
+here tweet: 
+
+# resources: 
+
+ok code not worked: 
+just got some washington dc parks. after some cleaning. 
+used: http://geojsonlint.com/ to validate parks
+used: https://mapster.me/right-hand-rule-geojson-fixer/ to fix geojson.
+used: https://gis.stackexchange.com/questions/259944/polygons-and-multipolygons-should-follow-the-right-hand-rule to ge tinformed about the righthand rule error
+used: https://observablehq.com/@erincaughey/national-parks-geojson to get a working url with geojson
+used: https://gist.githubusercontent.com/erincaughey/2f221501645757e28b715c4063e87595/raw/a90be1b434b1a8cdf71c2abc3373ca63987e2d23/nps-geo-boundary.json to get the geojson.
+
