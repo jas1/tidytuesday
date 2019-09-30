@@ -1,0 +1,255 @@
+---
+title: "Tidy tuesday challenge: Week 2019-09-24 School Divirsity
+author: "julio"
+date: "2019-09-24"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-09-24 School Divirsity
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+just explore and plot something =) 
+
+### Data:
+ 
+ Week Week 2019-09-24 School Divirsity
+ 
+### objectives:
+
+explore & do something
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(magrittr)
+library(tidyverse)
+# library(ggrepel)
+library(skimr)
+
+library(here)
+# library(dplyr)
+# library(tidyr)
+# library(readxl)
+# library(janitor)
+# library(stringr)
+# library(lubridate)
+# library(geojsonsf)
+
+# library(geojsonio); #install.packages("geojsonio")
+
+# library(grid)
+# library(spatialEco)#; install.packages("spatialEco")
+# library(sp)
+# library(sf)# install.packages('sf')
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+
+# library(transformr)# install.packages('transformr')
+# library(gganimate)# install.packag
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+school_diversity <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-24/school_diversity.csv")
+
+```
+
+too much data i'll just focus on parks
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# now_data %>% purrr::map(now_data,head)
+school_diversity %>% head()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+school_diversity %>% glimpse()
+
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+school_diversity %>% skimr::skim()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+DataExplorer::plot_missing(school_diversity)
+
+```
+
+ok , removing columns with NA. 
+LEAID, LEA_NAME, SCHOOL_YEAR,ST, Total
+
+lets take aian,asian,black,hispanic,white, other. as multi got some NA.
+
+as they are expressed on proportion, other = 100 - sum( aian,asian,black,hispanic,white)
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+school_diversity_proc  <- school_diversity %>% 
+    select(-d_Locale_Txt,-Multi,-int_group,-variance) %>% 
+    rename(lea_id = LEAID, lea_name = LEA_NAME,year = SCHOOL_YEAR, state = ST , total = Total) %>% 
+    janitor::clean_names() %>% 
+    mutate(prop_cum = (aian+asian+black+hispanic+white)) %>% 
+    mutate(other=100-prop_cum)
+
+```
+
+and here got some suprises ... as some got negative proportions O_O ! ?
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+school_diversity_proc %>% 
+    filter(other < 0)
+
+school_diversity_proc %>% 
+    filter(prop_cum < 100) %>% 
+    arrange(prop_cum)
+
+```
+
+i can go deeper but ... no much time to spend here :S
+
+just 1 column with old yead, and one column with new year.
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+data_plot <- school_diversity_proc #%>% 
+    # nest(-lea_id) %>% 
+    # mutate(got_changes=purrr::map(.x=data,.f=function(dat){
+    #     dat %>% distinct(diverse) %>% pull(diverse) %>% length() > 1
+    # })) %>% 
+    # unnest(got_changes) %>% 
+    # unnest(data)
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+total_stat <- data_plot %>% count(state,year,name = "total")
+
+dp_2 <- data_plot %>%
+    count(state,year,diverse) %>% 
+    left_join(total_stat) %>% 
+    mutate(ratio=n/total)
+    
+top_5_diverse_year <- dp_2 %>% 
+    nest(-year) %>% 
+    mutate(top_5_year=purrr::map(.x=data,
+                                         type_diverse="Diverse",
+                                         nth=5,
+                                         .f=function(dt,type_diverse,nth){
+        dt %>% 
+            filter(diverse==type_diverse) %>% 
+            arrange(desc(n,ratio)) %>% 
+            head(nth)%>% 
+            rowid_to_column(var = "rank")
+
+    })) %>% 
+    unnest(top_5_year) %>% 
+    select(-data)
+    
+    
+top_5_undiverse_year <- dp_2 %>% 
+    nest(-year) %>% 
+    mutate(top_5_year=purrr::map(.x=data,
+                                         type_diverse="Undiverse",
+                                         nth=5,
+                                         .f=function(dt,type_diverse,nth){
+        dt %>% 
+            filter(diverse==type_diverse) %>% 
+            arrange(desc(n,ratio)) %>% 
+            head(nth) %>% 
+            rowid_to_column(var = "rank")
+
+    })) %>% 
+    unnest(top_5_year) %>% 
+    select(-data)
+
+
+top_5_exundiverse_year <- dp_2 %>% 
+    nest(-year) %>% 
+    mutate(top_5_year=purrr::map(.x=data,
+                                         type_diverse="Extremely undiverse",
+                                         nth=5,
+                                         .f=function(dt,type_diverse,nth){
+        dt %>% 
+            filter(diverse==type_diverse) %>% 
+            arrange(desc(n,ratio)) %>% 
+            head(nth)%>% 
+            rowid_to_column(var = "rank")
+
+    })) %>% 
+    unnest(top_5_year) %>% 
+    select(-data)
+
+
+all_top_5 <- top_5_diverse_year %>% 
+    union_all(top_5_undiverse_year) %>% 
+    union_all(top_5_exundiverse_year)
+
+
+```
+
+
+
+
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+plot_1 <- all_top_5 %>% 
+    ggplot(aes(y=state,x=year,color=ratio,label=rank))+
+    geom_point(size=5) +
+    geom_text(color="#000000") +
+    geom_text(color="#FFFFFF",nudge_x = 0.25,size=2.75,aes(label=paste0(n,"/",total))) +
+    scale_color_gradient2(midpoint = 0.5)+
+    facet_grid(diverse~.,scales = "free_y")+
+    theme_dark()+
+    labs(title="Top 5 USA State Schools 'Racial Diversity'",
+         subtitle= "Ratio:  schools diverse N / total state schools\nOrder by N schools,then by ratio",
+         y="",x="",color="ratio",
+         caption="#TidyTuesday")
+
+plot_1
+ggsave(plot_1,filename = "plot_1.png",height = 7,width = 5)
+# plotly::ggplotly(plot_1)
+
+```
+
+#tweet: 
+
+2019-09-24 #TidyTuesday #rstats School Divirsity !
+a rank of USA school "racial diversity" in each time, considering amount of schools for each category.
+
+code: https://github.com/jas1/tidytuesday/tree/master/jas1_weeks/2019/2019-09-24
+
+
+# communicate
+
+here tweet: https://twitter.com/jspairani/status/1175980540576620544
+
