@@ -1,0 +1,161 @@
+---
+title: "Tidy tuesday challenge: Week 2019-10-01 Pizza!
+author: "julio"
+date: "2019-10-07"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-10-01 Pizza !
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+just explore and plot something =) 
+
+### Data:
+ 
+ Week Week 2019-10-01 Pizza!
+ 
+### objectives:
+
+explore & do something
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(magrittr)
+library(tidyverse)
+# library(ggrepel)
+library(skimr)
+
+library(here)
+
+library(choroplethr)#;install.packages("choroplethr")
+library(choroplethrMaps)#;install.packages("choroplethrMaps") # ??choroplethrMaps
+
+# library(dplyr)
+# library(tidyr)
+# library(readxl)
+# library(janitor)
+# library(stringr)
+# library(lubridate)
+# library(geojsonsf)
+
+# library(geojsonio); #install.packages("geojsonio")
+
+# library(grid)
+# library(spatialEco)#; install.packages("spatialEco")
+# library(sp)
+# library(sf)# install.packages('sf')
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+
+# library(transformr)# install.packages('transformr')
+# library(gganimate)# install.packag
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+pizza_jared <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-01/pizza_jared.csv")
+pizza_barstool <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-01/pizza_barstool.csv")
+pizza_datafiniti <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-01/pizza_datafiniti.csv")
+
+```
+
+too much data i'll just focus on parks
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# now_data %>% purrr::map(now_data,head)
+pizza_datafiniti %>% head()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+pizza_datafiniti %>% glimpse()
+
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+pizza_datafiniti %>% skimr::skim()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+DataExplorer::plot_missing(pizza_datafiniti)
+
+```
+
+going for datafinity
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+amount_of_pizza_places_by_state <- pizza_datafiniti %>% 
+    mutate(price_range=price_range_max-price_range_min) %>% 
+    group_by(province) %>% 
+    summarise(price_range_min_median=mean(price_range_min),
+              price_range_max_median=max(price_range_max),
+              price_range_var_median=median(price_range),
+              amount=n())
+
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# data(continental_us_states)
+# ggmap::
+
+us_states <- data.frame(state.name,state.abb,stringsAsFactors = FALSE) %>% 
+    as_tibble() %>% 
+    mutate(state_name=str_to_lower(state.name))
+
+
+simple_choro <- amount_of_pizza_places_by_state %>%
+    left_join(us_states,by=c("province"="state.abb")) %>% 
+    rename(region=state_name,
+           value=amount) %>%
+    state_choropleth(num_colors=7,
+                 zoom = continental_us_states)+
+    scale_fill_brewer(palette="YlOrBr")+
+    labs(title="Pizza places in Datafinity",
+         fill="# of places",
+         caption="#TidyTuesday")
+
+ggsave("simple_choro.png",simple_choro,width = 7,height = 5)
+
+```
+
+#tweet: 
+
+2019-10-01 #TidyTuesday #rstats Pizza places !
+amount of pizza places in datafinity DB by state.
+
+code: https://github.com/jas1/tidytuesday/tree/master/jas1_weeks/2019/2019-10-01
+
+
+# communicate
+
+here tweet: https://twitter.com/jspairani/status/1175980540576620544
+
