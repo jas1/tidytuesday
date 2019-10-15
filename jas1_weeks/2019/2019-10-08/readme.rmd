@@ -1,0 +1,309 @@
+---
+title: "Tidy tuesday challenge: Week 2019-10-08 PowerLifts!
+author: "julio"
+date: "2019-10-07"
+output: html_document
+---
+
+# Tidy tuesday challenge: Week 2019-10-08 powerlifts !
+
+keep it simple:
+
+## Objectives: 
+
+**general:**
+
+* work on data, 
+* practice, 
+* get better on your workflow,
+* get better on your skills: import, tidy , understand( transform, visualize,model ) , communicate
+
+
+** this week **
+
+just explore and plot something =) 
+
+### Data:
+ 
+ Week Week 2019-10-08 powerlifts!
+ 
+### objectives:
+
+explore & do something
+
+## details:
+
+
+## import data
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# library(magrittr)
+library(tidyverse)
+# library(ggrepel)
+library(skimr)
+
+library(here)
+library(ggtext)#;devtools::install_github("clauswilke/ggtext")
+# library(choroplethr)#;install.packages("choroplethr")
+# library(choroplethrMaps)#;install.packages("choroplethrMaps") # ??choroplethrMaps
+
+# library(dplyr)
+# library(tidyr)
+# library(readxl)
+# library(janitor)
+# library(stringr)
+# library(lubridate)
+# library(geojsonsf)
+
+# library(geojsonio); #install.packages("geojsonio")
+
+# library(grid)
+# library(spatialEco)#; install.packages("spatialEco")
+# library(sp)
+# library(sf)# install.packages('sf')
+# install.packages("Rcpp")
+# remotes::install_github("tylermorganwall/rayshader")
+# library(rayshader)
+
+# library(transformr)# install.packages('transformr')
+# library(gganimate)# install.packag
+```
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ipf_lifts <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-08/ipf_lifts.csv")
+
+```
+
+too much data i'll just focus on parks
+
+# explore data
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# now_data %>% purrr::map(now_data,head)
+ipf_lifts %>% head()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+ipf_lifts %>% glimpse()
+
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+ipf_lifts %>% skimr::skim()
+
+
+```
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+DataExplorer::plot_missing(ipf_lifts)
+
+```
+
+just simple sex, date, weight_class_kg, 
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+ipf_lifts %>% 
+    select(date,sex,weight_class_kg) %>% 
+    ggplot(aes(x=date,y=weight_class_kg,color=sex))+
+    geom_line()
+
+```
+ok not what i expected, so , ill re formule to , date, sex, amount of meets by decade
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+ipf_processed <- ipf_lifts %>% 
+    mutate(decade=as.integer(floor(lubridate::year(date)/10)*10)) %>% 
+    mutate(meet_name=str_replace(meet_name,"Men's","")) %>% 
+mutate(meet_name=str_replace(meet_name,"Women's","")) %>% 
+mutate(meet_name=str_replace(meet_name,"  "," ")) %>% 
+mutate(meet_name=str_trim(meet_name)) %>% 
+mutate(meet_name=str_replace(meet_name,"6th ","")) %>%
+mutate(meet_name=str_replace(meet_name,"3rd ","")) %>%
+mutate(meet_name=str_replace(meet_name,"48th ","")) %>% 
+mutate(meet_name=str_replace(meet_name,"Championships","Championship")) %>% 
+    mutate(meet_name=str_replace(meet_name,"Student's","Students")) %>% 
+    mutate(meet_name=str_replace(meet_name,"Students World Cup","World Students Cup"))
+    
+    
+
+ipf_processed %>% 
+    count(meet_name,sex,sort = TRUE) %>% 
+    count(meet_name) %>% 
+    arrange(meet_name)
+
+#%>% 
+    # filter(str_detect(meet_name,rebus::DGT))
+
+
+
+
+```
+
+male / female events proportion by decade
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+
+total_participants_sex_by_decade <- ipf_processed %>% 
+    count(decade,sex)
+
+total_events_sex_by_decade <- ipf_processed %>% 
+    distinct(date,decade,sex,meet_name) %>% 
+    count(decade,sex,meet_name)
+
+total_events_by_decade <-  ipf_processed %>% 
+    distinct(date,decade,meet_name) %>% 
+    count(decade,meet_name) %>% 
+    rename(total_events=n)
+
+total_events_proportions <- total_events_sex_by_decade %>% 
+    left_join(total_events_by_decade) %>% 
+    mutate(proportion=n/total_events) %>% 
+    arrange(decade,meet_name)
+
+top_event_by_decade <- ipf_processed %>% 
+    nest(-decade,-sex) %>% 
+    mutate(top_event=purrr::map(.x=data,.f=function(d){
+        d %>% count(date,meet_name,sort=TRUE) %>% head(1)
+    })) %>% 
+    unnest(top_event) %>% 
+    arrange(decade,sex) %>% 
+    select(-data)
+
+# top_event_by_decade$data[[1]] %>% count(date,meet_name,sort=TRUE) %>% head(1)
+
+
+
+```
+```{r echo=FALSE,message=FALSE,warning=FALSE}
+# lubridate::now() - lubridate::days(365)
+# annotations
+plot_annotations <- top_event_by_decade %>% 
+    mutate(label=paste0("**",str_replace_all(meet_name," ","<br>"),
+                        "**<br>(",date,
+                        ")<br> participants: ",n),
+           # x=date-lubridate::days(365*5), #  1mont before will display the laabel
+           x_minus= c(lubridate::days(365*5),#75, M
+                      lubridate::days(365*5),#75,F
+                      lubridate::days(365*5),#75,M
+                      lubridate::days(365*5),#75,F
+                      lubridate::days(365*5),#325,M
+                      lubridate::days(365*5),#75,F
+                      lubridate::days(365*2)*-1,#75,M
+                      lubridate::days(365*5),#325,F
+                      lubridate::days(365*8)),#325)M
+           x=date-x_minus,
+           # y=n # at the same Y
+           # y=c(325,75,75,325,325,75,75,425,425)
+           y=c(75,75,75,75,325,75,325,325,325)
+           ) # text horizontal justifaction
+
+# curves for arrows
+plot_curves <- plot_annotations %>% 
+    filter(sex=="M",decade%in%c(1990,2000)) %>% # only the ones that need arrows
+      mutate(curve_delta=c(lubridate::days(365*2),
+                           lubridate::days(365*3)),
+             curve_x=x+curve_delta,
+             curve_y=c(450,500),
+             curve_x_end=date,curve_y_end=n,
+             curvature=c(-0.3,-0.5))
+
+             # (aes(x = date, y = y, 
+             #         xend = x, yend = y),
+             # arrow = arrow(length = unit(0.02, "npc")),
+             # curvature = -0.3) +
+```     
+
+
+```{r echo=FALSE,message=FALSE,warning=FALSE}     
+
+# amount of ppl attending to event.
+plot_out <- ipf_processed %>% 
+    count(date,sex) %>% 
+    ggplot(aes(x=date,y=n,color=sex))+
+    geom_line()+
+    expand_limits(y = c(0,1200))+
+    geom_point(data=top_event_by_decade,
+               alpha=0.5,
+               size=5)+
+    geom_richtext(data = plot_annotations,
+                 aes(label = str_wrap(label), x = x, y = y), 
+                 hjust=0,
+                 vjust = -0.2, size = 3,
+                     # family = "IBM Plex Sans",
+                 show.legend = FALSE,
+                     fill = NA, label.color = NA) +
+    geom_curve(data = plot_curves,
+               aes(x = curve_x,
+                   y = curve_y,
+                   xend = curve_x_end,
+                   yend = curve_y_end,
+                   curvature=curvature),
+             arrow = arrow(length = unit(0.02, "npc")))+
+    facet_grid(sex~.)+
+    theme_light()+
+    theme(legend.position = "none")+
+    labs(title="Participation of Powerlifts overtime",
+         subtitle="highlighted top events of decades.",
+         y="# amount of participants",
+         x="", caption="#TidyTuesday")
+
+# waffle::geom_waffle()
+
+# ggsave("simple_choro.png",simple_choro,width = 7,height = 5)
+# y_male=c(600,200,600,200,600)
+# y_f=c(200,600,200,600)
+
+# y_total <- c(600,200,200,600,600,200,200,600,600)
+
+# c(600,200,200,600,600,200,200,600,600)-175
+# print(c(600,200,200,600,600,200,200,600,600)-175)
+# x_f=c(date-lubridate::days(365*5),
+# date-lubridate::days(365*5),
+# date-lubridate::days(365*5),
+# date-lubridate::days(365*5),
+# date-lubridate::days(365*15))
+# x_total
+
+# c(75,75,75,75,325,75,75,325,325)
+# c(date-lubridate::days(365*15),#75, M
+# date-lubridate::days(365*15),#75,F
+# date-lubridate::days(365*15),#75,M
+# date-lubridate::days(365*15),#75,F
+# date-lubridate::days(365*15),#325,M
+# date-lubridate::days(365*15),#75,F
+# date-lubridate::days(365*5),#75,M
+# date-lubridate::days(365*15),#325,F
+# date-lubridate::days(365*20)),#325)M
+plot_out
+ggsave("powlift.png",plot_out,width = 7,height = 5)
+```
+
+
+
+#tweet: 
+
+2019-10-08 #TidyTuesday #rstats Power Lift IPF !
+Event participation over time, highlighted top events of each decade.
+thanks @geokaramanis for sharing code ! helped me a lot to get started on annotations :D
+
+code: https://github.com/jas1/tidytuesday/tree/master/jas1_weeks/2019/2019-10-08
+
+
+# communicate
+
+here tweet: https://twitter.com/jspairani/status/1175980540576620544
+
+# resoutces: 
+
+- https://github.com/gkaramanis/tidytuesday/blob/master/week-34/nuclear.R
+- https://github.com/clauswilke/ggtext
+
+
